@@ -1,8 +1,8 @@
 # `get-sybers/gowindowlicker` — the Windows artefact matrix as one structured binary
 
 Every Windows Go parser is a package of this module and a sub-tool of this
-single static binary — the multi-tool dispatcher shape of
-[docs/framework/04 §4.3](../docs/framework/04-self-orchestration.md). It is
+single static binary — the multi-tool self-orchestration shape defined by
+the get-sybers framework standard. It is
 the **only** shipped shape: the parsers live here as packages, and there are
 no standalone per-parser binaries or images. gowindowlicker *is* the
 Windows tool.
