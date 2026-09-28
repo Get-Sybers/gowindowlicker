@@ -4,7 +4,7 @@
 // one record per program-execution file entry — the key's last-write time,
 // ProgramId, the SHA-1, full path, name, publisher/product/version, size — as
 // CSV or JSONL. It runs on Linux with no
-// .NET, no shell and no libc (see Dockerfile: FROM scratch, uid 2000), matching
+// .NET, no shell and no libc, matching
 // the get-sybers hardening contract of the other GoDFIR tools.
 //
 // Source key: `Root\InventoryApplicationFile` (the modern Win8+ inventory). The

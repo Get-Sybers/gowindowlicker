@@ -64,17 +64,12 @@ on a config error. Progress and errors go to stderr.
 ## Run
 
 ```sh
-docker build -t get-sybers/gowindowlicker:latest -f gowindowlicker/Dockerfile gowindowlicker
-docker run --rm --cap-drop ALL --security-opt no-new-privileges --network none \
-  --read-only --tmpfs /work:rw,nosuid,nodev,uid=2000,gid=2000 \
-  -v "$PWD/in:/input:ro" -v "$PWD/out:/output" \
-  get-sybers/gowindowlicker:latest gosbe
-```
+go install github.com/get-sybers/gowindowlicker@latest   # -> $(go env GOPATH)/bin/gowindowlicker
 
-The shared [`test/contract_test.sh`](../test/contract_test.sh) builds the image, runs the sweep over the packages' `testdata/` (a
-generated NTUSER.DAT with a two-level BagMRU; `testdata/gen_fixtures.py` remakes
-it), and asserts the summary line, the exit code, idempotency and the
-config-error exit.
+# env-driven — set the variables from the Env table above (point the
+# *_DIR paths at local directories), then run the sub-tool:
+GOSBE_INPUT_DIR=./in GOSBE_OUT_DIR=./out gowindowlicker gosbe
+```
 
 ## argv pass-through (debug only, `gowindowlicker gosbe <args>`)
 

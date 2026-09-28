@@ -106,21 +106,26 @@ else 1.
 ## Run
 
 ```sh
-docker build -t get-sybers/gowindowlicker:latest -f gowindowlicker/Dockerfile gowindowlicker
-docker run --rm --cap-drop ALL --security-opt no-new-privileges --network none \
-  --read-only --tmpfs /work:rw,nosuid,nodev,uid=2000,gid=2000 \
-  -v "$PWD/in:/input:ro" -v "$PWD/out:/output" \
-  get-sybers/gowindowlicker:latest              # every parser (the default)
+go install github.com/get-sybers/gowindowlicker@latest   # -> $(go env GOPATH)/bin/gowindowlicker
+
+# every parser (the default), env-driven — see Env (the sweep) above; point the
+# *_DIR paths at local directories. gore resolves its batch from GORE_BATCH (the
+# container default /batch/default.reb is absent for a plain binary):
+GOWINDOWLICKER_INPUT_DIR=./in GOWINDOWLICKER_OUT_DIR=./out \
+  GORE_BATCH=./re/batch/default.reb gowindowlicker
 ```
 
-Scoped, the sub-tool is the only thing that changes:
+Scoped, the sub-tool is the only thing that changes (each reads its own
+`<SUBTOOL>_*` block — see the per-parser READMEs):
 
 ```sh
-docker run --rm … get-sybers/gowindowlicker:latest gorb
+GORB_INPUT_DIR=./in GORB_OUT_DIR=./out gowindowlicker gorb
 ```
 
-(The module is self-contained — its own directory is the build context, and
-the shared batch runtime lives here as the [`batch/`](batch/) package.)
+The shared batch runtime is imported from the published
+[`github.com/get-sybers/gopinfo`](https://github.com/Get-Sybers/gopinfo) module,
+not vendored here. Container images are built and documented separately in
+[GoDFIR-toolz](https://github.com/Get-Sybers/GoDFIR-toolz).
 
 ## argv pass-through (debug only)
 
@@ -129,8 +134,3 @@ parser's own argv debug mode: `-f FILE | -d DIR | --tar` (a `gomount stream`
 tar on stdin) and each parser's own flags; records stream to stdout — see
 each package README for its exact flags. `--version` prints the version;
 `--print-contract` prints [`contract.yml`](contract.yml).
-
-`test/contract_test.sh` builds the image (or the host binary under
-`CONTRACT_LOCAL=1`), assembles one evidence tree from the packages'
-committed `testdata/`, and asserts the sweep, idempotency, the config-error
-exit, the argv pass-through and a single-subtool run.

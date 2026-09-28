@@ -59,17 +59,12 @@ on a config error. Progress and errors go to stderr.
 ## Run
 
 ```sh
-docker build -t get-sybers/gowindowlicker:latest -f gowindowlicker/Dockerfile gowindowlicker
-docker run --rm --cap-drop ALL --security-opt no-new-privileges --network none \
-  --read-only --tmpfs /work:rw,nosuid,nodev,uid=2000,gid=2000 \
-  -v "$PWD/in:/input:ro" -v "$PWD/out:/output" \
-  get-sybers/gowindowlicker:latest gojle
-```
+go install github.com/get-sybers/gowindowlicker@latest   # -> $(go env GOPATH)/bin/gowindowlicker
 
-The shared [`test/contract_test.sh`](../test/contract_test.sh) builds the image and runs the sweep over the packages' `testdata/`.
-That directory holds no jump list (a valid OLE compound file cannot be
-generated from the standard library), so the test asserts the nothing-to-do
-exit `1`, its idempotency, and the config-error exit `2`.
+# env-driven — set the variables from the Env table above (point the
+# *_DIR paths at local directories), then run the sub-tool:
+GOJLE_INPUT_DIR=./in GOJLE_OUT_DIR=./out gowindowlicker gojle
+```
 
 ## argv pass-through (debug only, `gowindowlicker gojle <args>`)
 

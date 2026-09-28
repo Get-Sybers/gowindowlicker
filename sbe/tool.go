@@ -3,8 +3,7 @@
 // Walks the BagMRU shellbag tree in NTUSER.DAT / UsrClass.dat with
 // Velociraptor's regparser and
 // emits one record per shellbag (the folder a user browsed in Explorer), with
-// the reconstructed AbsolutePath. Runs on Linux with no .NET, no shell, no libc
-// (Dockerfile: FROM scratch, uid 2000).
+// the reconstructed AbsolutePath. Runs on Linux with no .NET, no shell, no libc.
 //
 // Dirty-hive .LOG1/.LOG2 transaction logs ARE replayed (regparser.RecoverHive)
 // unless --nl; the recovered copy is written under --work-dir

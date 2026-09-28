@@ -3,7 +3,7 @@
 // Parses the modern Recycle Bin metadata files ($I<id>, one per deleted item,
 // that pair with the $R<id> payload) and emits the facts — original path,
 // logical size, deletion time — as CSV or JSONL. Runs on Linux with no .NET,
-// no shell and no libc (see Dockerfile: FROM scratch, uid 2000), matching the
+// no shell and no libc, matching the
 // get-sybers hardening contract of the other GoDFIR tools.
 //
 // Two on-disk layouts are handled (both little-endian):

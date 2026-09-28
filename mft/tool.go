@@ -4,8 +4,8 @@
 // MFT entry — entry/sequence, parent reference, file name + extension, size,
 // the $STANDARD_INFORMATION (0x10) and
 // $FILE_NAME (0x30) MACB timestamps, flags, ADS — as JSONL or CSV. It runs on
-// Linux with no .NET, no shell and no libc (see Dockerfile: FROM scratch, uid
-// 2000), matching the get-sybers hardening contract of the other GoDFIR tools.
+// Linux with no .NET, no shell and no libc, matching the get-sybers hardening
+// contract of the other GoDFIR tools.
 //
 // A $MFT record begins with the "FILE" signature, so `-d` finds the table by
 // header regardless of name — a raw-mount "$MFT" and Plaso image_export's

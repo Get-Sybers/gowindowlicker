@@ -62,18 +62,12 @@ stderr.
 ## Run
 
 ```sh
-docker build -t get-sybers/gowindowlicker:latest -f gowindowlicker/Dockerfile gowindowlicker
-docker run --rm --cap-drop ALL --security-opt no-new-privileges --network none \
-  --read-only --tmpfs /work:rw,nosuid,nodev,uid=2000,gid=2000 \
-  -v /mnt/image:/input:ro -v "$PWD/out:/output" \
-  -e GOESE_TABLES= \
-  get-sybers/gowindowlicker:latest goese
-```
+go install github.com/get-sybers/gowindowlicker@latest   # -> $(go env GOPATH)/bin/gowindowlicker
 
-The shared [`test/contract_test.sh`](../test/contract_test.sh) builds the image and runs the sweep over the packages' `testdata/`.
-That directory holds no ESE database (a valid one cannot be generated from the
-standard library), so the test asserts the nothing-to-do exit `1`, its
-idempotency, and the config-error exit `2`.
+# env-driven — set the variables from the Env table above (point the
+# *_DIR paths at local directories), then run the sub-tool:
+GOESE_INPUT_DIR=./in GOESE_OUT_DIR=./out gowindowlicker goese
+```
 
 ## argv pass-through (debug only, `gowindowlicker goese <args>`)
 

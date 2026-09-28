@@ -60,7 +60,7 @@ import (
 //go:embed contract.yml
 var contractYML string
 
-// version is stamped by the Dockerfile (-X main.version=${TOOL_VERSION}).
+// version is stamped at build time via -ldflags (-X main.version).
 var version = "0.0.0-dev"
 
 // argvMain is a parser package's Main: batch.Entry plus the tool's argv

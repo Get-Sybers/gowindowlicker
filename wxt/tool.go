@@ -6,7 +6,7 @@
 // Activity table — the executable from AppId, the display text / content info
 // from Payload, the StartTime/EndTime/LastModified/Expiration timestamps,
 // activity type — as CSV or JSONL. It runs on Linux with no .NET,
-// no shell and no libc (see Dockerfile: FROM scratch, uid 2000).
+// no shell and no libc.
 //
 // SQLite needs a writable working area (journal/WAL/temp), but the pipeline
 // mounts the input read-only under a read-only rootfs. gowxt copies the DB (and

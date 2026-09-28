@@ -4,9 +4,8 @@
 // Reads the AppCompatCache value from a SYSTEM registry hive with
 // Velociraptor's regparser (and its appcompatcache subpackage) and emits one record per shimcache entry —
 // the execution-candidate path and its $STANDARD_INFORMATION last-modified time —
-// as CSV or JSONL. It runs on Linux with no .NET, no shell and no libc (see
-// Dockerfile: FROM scratch, uid 2000), matching the get-sybers hardening
-// contract of the other GoDFIR tools.
+// as CSV or JSONL. It runs on Linux with no .NET, no shell and no libc,
+// matching the get-sybers hardening contract of the other GoDFIR tools.
 //
 // Columns: ControlSet, CacheEntryPosition, Path, LastModifiedTimeUTC,
 // SourceFile. Executed/Duplicate state columns are NOT emitted — regparser's shimcache parser does not expose the

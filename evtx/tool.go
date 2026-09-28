@@ -7,7 +7,7 @@
 // UserId, and Payload (the event's EventData rendered as the classic
 // {"EventData":{"Data":[{"@Name","#text"}...]}} form, or {"UserData":...}) plus
 // SourceFile and a null MapDescription. It runs on Linux with no .NET, no shell
-// and no libc (see Dockerfile: FROM scratch, uid 2000).
+// and no libc.
 //
 // What it does NOT do (never faked): per-provider derived columns —
 // PayloadData1-6 / MapDescription / ExecutableInfo. byakugan reads the RAW

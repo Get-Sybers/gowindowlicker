@@ -5,8 +5,7 @@
 // Velociraptor's regparser. One record per value in the shape byakugan's
 // recmd_batch map consumes: HivePath, HiveType, Category, Description, Comment,
 // KeyPath, ValueName, ValueType, ValueData, LastWriteTimestamp, Recursive,
-// Deleted. Runs on Linux with no .NET, no shell, no libc (Dockerfile: FROM
-// scratch, uid 2000).
+// Deleted. Runs on Linux with no .NET, no shell, no libc.
 //
 // Dirty-hive .LOG1/.LOG2 transaction logs ARE replayed (regparser.RecoverHive)
 // unless --nl is given; the recovered copy
