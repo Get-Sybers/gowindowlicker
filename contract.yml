@@ -1,0 +1,56 @@
+# gowindowlicker/contract.yml — the single source of truth for how DX_DFIR drives this tool.
+tool: gowindowlicker
+image: get-sybers/gowindowlicker:latest
+entrypoint: multi-tool
+description: >
+  The Windows artefact matrix as one structured binary: every Windows
+  parser a sub-tool of one static FROM-scratch image — there are no
+  standalone per-parser images. Bare invocation (or `lick`) is the sweep —
+  every parser over the same evidence tree, each into its own
+  <OUT_DIR>/<subtool>/ tree, one aggregate JSON summary line. Each parser
+  keeps its canonical tool name, <SUBTOOL>_* env block, record shapes and
+  record-file names — the interface byakugan and the pipeline consume. The
+  calling vocabulary is the sub-tool names (no stream or model words) and
+  there is no layered knowledge store: the Windows artefacts are
+  self-contained, so every sub-run is independent.
+
+subtools: [lick, goprefetch, goese, gorb, gomft, goamcache, goappcompat, goevtx, gore, gosbe, gole, gojle, gowxt]
+
+# The sweep's own block. A parser sub-tool run (`gowindowlicker gorb`) reads
+# that tool's canonical <SUBTOOL>_* block instead (GORB_INPUT_DIR,
+# GORB_OUT_DIR, …) — each parser package's README (rb/README.md and siblings)
+# documents its block and its record shapes. Under the sweep a sub-tool's own
+# non-reserved variables (GORE_BATCH, GORB_FORMAT, …) fall through untouched:
+# format stays per parser, three of the twelve being JSONL-only.
+env:
+  GOWINDOWLICKER_INPUT_DIR: {required: false, default: /input,  desc: 'evidence tree, recursed read-only, shared by every sub-run'}
+  GOWINDOWLICKER_OUT_DIR:   {required: false, default: /output, desc: 'output root: one <subtool>/ tree per parser'}
+  GOWINDOWLICKER_WORK_DIR:  {required: false, default: /work,   desc: 'scratch (writable tmpfs), shared by every sub-run; a disk image''s artefact sets are pulled here while its parsers run, so bind a disk-backed dir for large images'}
+  GOWINDOWLICKER_IMAGE:     {required: false, default: "",      desc: 'run ON one disk image: its path relative to INPUT_DIR (E01/Ex01, raw, VMDK, VHDX, VHD, QCOW2, VDI, DMG (.dmg), sparseimage (.sparseimage)). The baked-in gomount pulls every parser''s artefact set (windows-core) out of the OS volume into WORK_DIR, the parsers run over that, records land under <OUT_DIR>/<subtool>/<image>/, nothing is exported. Empty = the loose tree itself plus every image directly under it; a sub-tool run reads <SUBTOOL>_IMAGE and writes <OUT_DIR>/<image>/'}
+  GOWINDOWLICKER_FORCE:     {required: false, default: "0", type: bool, desc: '1/true/yes/on reruns items that already have valid output, in every sub-run'}
+  GOWINDOWLICKER_LOG_LEVEL: {required: false, default: info,    desc: 'error|warn|info|debug, stderr only, applied to every sub-run'}
+
+mounts:
+  - {name: input,  path: /input,  mode: ro, env: GOWINDOWLICKER_INPUT_DIR, required: true}
+  - {name: output, path: /output, mode: rw, env: GOWINDOWLICKER_OUT_DIR,   required: true}
+  - {name: work,   path: /work,   mode: rw, env: GOWINDOWLICKER_WORK_DIR,  required: false}
+
+network: none
+exit_codes: {0: success, 1: nothing_produced, 2: config_error, 3: partial}
+
+summary_schema:
+  required: [tool, version, status, inputs, processed, skipped, failed, records, subtools, exit, started, duration_s]
+  note: >
+    the sweep prints ONE aggregate line with every sub-tool's own summary
+    embedded under `subtools`; a single-parser sub-run prints that parser's
+    ordinary summary line.
+
+outputs:
+  lick: "<OUT_DIR>/<subtool>/<item>/<subtool>.<jsonl|csv> per parser, one folder per discovered artefact; a disk image's artefacts one level down, <OUT_DIR>/<subtool>/<image>/<item>/"
+  subtool: "as that parser's package README declares (one folder per item under its OUT_DIR)"
+
+argv_passthrough: >
+  `gowindowlicker <subtool>` runs that parser's env-driven batch mode under
+  its canonical <SUBTOOL>_* block. `gowindowlicker <subtool> <args>` is the
+  parser's argv debug pass-through (-f FILE | -d DIR | --tar, and each
+  parser's own flags); there are no standalone per-parser binaries.
