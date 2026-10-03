@@ -1,5 +1,5 @@
-github.com/Get-Sybers/gopinfo v0.2.0 h1:pGq5L3KRndCZwmzfNQ3+fR0A+mctNRmmcWTw5gqY7Ho=
-github.com/Get-Sybers/gopinfo v0.2.0/go.mod h1:zl3HyzkoEBmlXTBKU+pdRaFcCE/Yx5XlUTLAwn4jJ7s=
+github.com/Get-Sybers/gopinfo v0.2.1 h1:w2NK63gCFwo7E9Tvb08rrDgBc/tNsdwpuCNgj2nrzDw=
+github.com/Get-Sybers/gopinfo v0.2.1/go.mod h1:1leLLwERhLtHqC8wuzHDdUiw+oafddhP/oq3blTfQmI=
 github.com/Velocidex/json v0.0.0-20220224052537-92f3c0326e5a h1:AeXPUzhU0yhID/v5JJEIkjaE85ASe+Vh4Kuv1RSLL+4=
 github.com/Velocidex/json v0.0.0-20220224052537-92f3c0326e5a/go.mod h1:ukJBuruT9b24pdgZwWDvOaCYHeS03B7oQPCUWh25bwM=
 github.com/Velocidex/ordereddict v0.0.0-20191106020901-97c468e5e403/go.mod h1:pxJpvN5ISMtDwrdIdqnJ3ZrjIngCw+WT6gfNil6Zjvo=

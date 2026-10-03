@@ -3,7 +3,7 @@ module github.com/Get-Sybers/gowindowlicker
 go 1.27.1
 
 require (
-	github.com/Get-Sybers/gopinfo v0.2.0
+	github.com/Get-Sybers/gopinfo v0.2.1
 	github.com/Velocidex/ordereddict v0.0.0-20250821063524-02dc06e46238
 	github.com/parsiya/golnk v0.0.0-20260401090434-89c3c681a14a
 	github.com/richardlehane/mscfb v1.0.9
