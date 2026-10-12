@@ -8,6 +8,8 @@
 //
 //	gowindowlicker                     every parser — the default sweep,
 //	                                   GOWINDOWLICKER_* driven
+//	gowindowlicker live                every parser over the LIVE Windows host
+//	                                   (= GOWINDOWLICKER_LIVE=1)
 //	gowindowlicker <subtool>           one parser's env-driven batch mode,
 //	                                   under its canonical <SUBTOOL>_* block
 //	gowindowlicker <subtool> <args>    that parser's argv debug pass-through
@@ -20,6 +22,14 @@
 // baked-in gomount pulls their artefact sets out of the OS volume into the
 // work dir, the batch loop runs over that, records land under
 // <OUT_DIR>/<subtool>/<image>/, the scratch goes. Nothing is exported.
+//
+// The LIVE host is the same shape (live.go): GOWINDOWLICKER_LIVE (or a
+// sub-tool's <SUBTOOL>_LIVE), or the `live` word, runs the parsers ON the
+// running Windows machine — the same artefact sets are pulled off the raw
+// NTFS volume (\\.\C:) by go-ntfs, so the files the OS holds open are read
+// from their clusters all the same, into the work dir; records land under
+// <OUT_DIR>/<subtool>/live/, the scratch goes. Read-only, Windows-only,
+// Administrator required. Live and image are mutually exclusive.
 //
 // (`lick` stays accepted as the explicit word for the default run.) The
 // multi-tool dispatcher shape of docs/framework/04 §4.3. The calling
@@ -49,6 +59,7 @@ import (
 	"github.com/Get-Sybers/gowindowlicker/evtx"
 	"github.com/Get-Sybers/gowindowlicker/jle"
 	"github.com/Get-Sybers/gowindowlicker/le"
+	"github.com/Get-Sybers/gowindowlicker/live"
 	"github.com/Get-Sybers/gowindowlicker/mft"
 	"github.com/Get-Sybers/gowindowlicker/prefetch"
 	"github.com/Get-Sybers/gowindowlicker/rb"
@@ -95,8 +106,15 @@ var subs = []sub{
 	{"gowxt", wxt.Tool, wxt.Main, []string{"timeline"}},
 }
 
-// sweepSets is what the sweep pulls out of an image: every parser's sets in one.
+// sweepSets is what the sweep pulls out of an image or the live host: every
+// parser's sets in one.
 var sweepSets = []string{"windows-core"}
+
+// liveCollect is the live-host artefact collector (live.Collect) — the live
+// analogue of diskimage.MaterialiseImage. It is a package variable so a test
+// can stage a scratch tree in its place, the way the image path swaps gomount
+// through GOMOUNT_BIN.
+var liveCollect = live.Collect
 
 func main() { os.Exit(run(os.Args[1:], os.Getenv, os.Stdout)) }
 
@@ -116,12 +134,22 @@ func run(args []string, getenv func(string) string, stdout io.Writer) int {
 	if len(args) == 0 || (len(args) == 1 && args[0] == "lick") {
 		return runLick(getenv, stdout)
 	}
+	// `live` is the explicit word for a sweep of the live host, the live
+	// analogue of `lick`: it forces GOWINDOWLICKER_LIVE on (the system drive)
+	// unless the variable already names a drive.
+	if len(args) == 1 && args[0] == "live" {
+		return runLick(forceLive(getenv), stdout)
+	}
 	for _, s := range subs {
 		if s.name != args[0] {
 			continue
 		}
 		if len(args) == 1 {
-			if img := getenv(batch.Prefix(s.tool.Name) + "_IMAGE"); img != "" {
+			pfx := batch.Prefix(s.tool.Name)
+			if lv := getenv(pfx + "_LIVE"); lv != "" {
+				return runSubOnLive(s, lv, getenv, stdout)
+			}
+			if img := getenv(pfx + "_IMAGE"); img != "" {
 				return runSubOnImage(s, img, getenv, stdout)
 			}
 			return batch.Run(s.tool, batch.Options{Version: version, Contract: contractYML}, getenv, stdout)
@@ -143,6 +171,7 @@ func usage() {
 		names[i] = s.name
 	}
 	fmt.Fprintln(os.Stderr, "usage: gowindowlicker                      (every parser — the default sweep, GOWINDOWLICKER_* driven)\n"+
+		"       gowindowlicker live                 (every parser over the LIVE Windows host; = GOWINDOWLICKER_LIVE=1)\n"+
 		"       gowindowlicker <subtool>            (one parser's env-driven batch: "+strings.Join(names, " ")+")\n"+
 		"       gowindowlicker <subtool> <args>     (that parser's argv debug pass-through: -f FILE | -d DIR | --tar, …)\n"+
 		"       gowindowlicker --version | --print-contract")
@@ -159,6 +188,7 @@ type lickSummary struct {
 	Skipped   int             `json:"skipped"`
 	Failed    int             `json:"failed"`
 	Records   int             `json:"records"`
+	Live      bool            `json:"live,omitempty"`   // the run was a live-host sweep
 	Images    []string        `json:"images,omitempty"` // the disk images run on, by item name
 	Subtools  []batch.Summary `json:"subtools"`
 	Failures  []batch.Failure `json:"failures,omitempty"` // an image that could not be read
@@ -192,6 +222,46 @@ func runSubOnImage(s sub, selected string, getenv func(string) string, stdout io
 		"INPUT_DIR": scratch, "OUT_DIR": filepath.Join(out, diskimage.ImageItemName(in, images[0])), "IMAGE": "",
 	})
 	return batch.Run(s.tool, batch.Options{Version: version, Contract: contractYML}, shim, stdout)
+}
+
+// runSubOnLive is one parser's batch mode over the LIVE host: its sets are
+// pulled off the live volume into scratch, the batch loop runs over that tree
+// into <OUT_DIR>/live/, and the parser's ordinary summary line is printed. The
+// live analogue of runSubOnImage; drive names the volume ("" / a truthy word =
+// the system drive, a letter names one).
+func runSubOnLive(s sub, drive string, getenv func(string) string, stdout io.Writer) int {
+	pfx := batch.Prefix(s.tool.Name) + "_"
+	get := func(suffix, def string) string {
+		if v := getenv(pfx + suffix); v != "" {
+			return v
+		}
+		return def
+	}
+	out, work := get("OUT_DIR", "/output"), get("WORK_DIR", "/work")
+	scratch, err := liveCollect(getenv, work, drive, s.sets)
+	if err != nil {
+		return configErrorSummary(s.name, err, stdout)
+	}
+	defer os.RemoveAll(scratch)
+	shim := shimEnv(s.tool, getenv, map[string]string{
+		"INPUT_DIR": scratch, "OUT_DIR": filepath.Join(out, live.HostDir), "IMAGE": "", "LIVE": "",
+	})
+	return batch.Run(s.tool, batch.Options{Version: version, Contract: contractYML}, shim, stdout)
+}
+
+// forceLive wraps getenv so GOWINDOWLICKER_LIVE reads as on (the system drive)
+// when it is unset — the `live` word's effect — while an explicit drive in the
+// variable is left to stand.
+func forceLive(getenv func(string) string) func(string) string {
+	return func(k string) string {
+		if k == "GOWINDOWLICKER_LIVE" {
+			if v := getenv(k); v != "" {
+				return v
+			}
+			return "1"
+		}
+		return getenv(k)
+	}
 }
 
 // configErrorSummary prints a parser-shaped config_error summary line.
@@ -229,42 +299,57 @@ func runLick(getenv func(string) string, stdout io.Writer) int {
 		Started: started.UTC().Format(time.RFC3339),
 	}
 
-	// the passes: the loose tree itself (only when no image is selected),
-	// then every disk image — each pulled into scratch by gomount and run
-	// as its own host under <OUT_DIR>/<subtool>/<image>/
+	// the passes: the LIVE host, or every disk image, or the loose tree — each
+	// pulled into scratch and run as its own host under
+	// <OUT_DIR>/<subtool>/<host>/ (the loose tree writes directly under
+	// <subtool>/). Live and images are mutually exclusive: the live host is one
+	// source to run ON, not a tree holding images.
 	type pass struct{ in, host, scratch string }
 	var passes []pass
-	selected := get("IMAGE", "")
-	images, err := diskimage.SelectedImages(in, selected)
-	if err != nil {
-		sum.Status, sum.Exit = "config_error", 2
-		sum.Failures = []batch.Failure{{Item: selected, Error: err.Error()}}
-		fmt.Fprintf(os.Stderr, "gowindowlicker: %v\n", err)
-		return writeLick(sum, started, stdout)
-	}
-	if selected == "" {
-		passes = append(passes, pass{in: in})
-	}
 	sawOK, sawPartial, sawConfig := false, false, false
-	for _, img := range images {
-		host := diskimage.ImageItemName(in, img)
-		scratch, err := diskimage.MaterialiseImage(getenv, work, img, sweepSets)
+
+	if liveSel := get("LIVE", ""); liveSel != "" {
+		scratch, err := liveCollect(getenv, work, liveSel, sweepSets)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "gowindowlicker: %s: %v\n", host, err)
-			sum.Failed++
-			sum.Failures = append(sum.Failures, batch.Failure{Item: img, Error: err.Error()})
-			sawPartial = true
-			continue
+			sum.Status, sum.Exit = "config_error", 2
+			sum.Failures = []batch.Failure{{Item: "live", Error: err.Error()}}
+			fmt.Fprintf(os.Stderr, "gowindowlicker: live: %v\n", err)
+			return writeLick(sum, started, stdout)
 		}
-		sum.Images = append(sum.Images, host)
-		passes = append(passes, pass{in: scratch, host: host, scratch: scratch})
+		sum.Live = true
+		passes = append(passes, pass{in: scratch, host: live.HostDir, scratch: scratch})
+	} else {
+		selected := get("IMAGE", "")
+		images, err := diskimage.SelectedImages(in, selected)
+		if err != nil {
+			sum.Status, sum.Exit = "config_error", 2
+			sum.Failures = []batch.Failure{{Item: selected, Error: err.Error()}}
+			fmt.Fprintf(os.Stderr, "gowindowlicker: %v\n", err)
+			return writeLick(sum, started, stdout)
+		}
+		if selected == "" {
+			passes = append(passes, pass{in: in})
+		}
+		for _, img := range images {
+			host := diskimage.ImageItemName(in, img)
+			scratch, err := diskimage.MaterialiseImage(getenv, work, img, sweepSets)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gowindowlicker: %s: %v\n", host, err)
+				sum.Failed++
+				sum.Failures = append(sum.Failures, batch.Failure{Item: img, Error: err.Error()})
+				sawPartial = true
+				continue
+			}
+			sum.Images = append(sum.Images, host)
+			passes = append(passes, pass{in: scratch, host: host, scratch: scratch})
+		}
 	}
 
 	for _, p := range passes {
 		for _, s := range subs {
 			shim := shimEnv(s.tool, getenv, map[string]string{
 				"INPUT_DIR": p.in, "OUT_DIR": filepath.Join(out, s.name, p.host), "WORK_DIR": work,
-				"FORCE": force, "LOG_LEVEL": level, "IMAGE": "",
+				"FORCE": force, "LOG_LEVEL": level, "IMAGE": "", "LIVE": "",
 			})
 			var buf bytes.Buffer
 			code := batch.Run(s.tool, batch.Options{Version: version, Contract: contractYML}, shim, &buf)
