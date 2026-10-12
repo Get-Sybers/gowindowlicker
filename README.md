@@ -17,13 +17,15 @@ JSON summary line.
 
 ```
 gowindowlicker                     every parser (the default sweep)
+gowindowlicker live                every parser over the LIVE Windows host
 gowindowlicker <subtool>           one parser's env-driven batch mode, under
                                    its canonical <SUBTOOL>_* block
 gowindowlicker <subtool> <args>    that parser's argv debug pass-through
 gowindowlicker --version | --print-contract
 ```
 
-`lick` stays accepted as the explicit word for the default run. The calling
+`lick` stays accepted as the explicit word for the default run, and `live` for
+the live-host sweep (= `GOWINDOWLICKER_LIVE=1`). The calling
 vocabulary is the sub-tool names — there is **no stream or model-word
 vocabulary** — and there is no layered knowledge store: the Windows
 artefacts are self-contained, so every sub-run is independent and the sweep
@@ -57,6 +59,50 @@ export — feeds every parser without routing.
 The evidence tree at `GOWINDOWLICKER_INPUT_DIR` (default `/input`), mounted
 read-only and shared by every sub-run.
 
+## Running on the live system
+
+Instead of a mounted tree or a disk image, gowindowlicker can run **on the
+running Windows machine it is processing** — live-response triage with the same
+one binary and the same output shape. Set `GOWINDOWLICKER_LIVE` (or use the
+`live` word), and every parser's artefact set is pulled off the host's own
+volume and parsed:
+
+```bat
+rem a full live sweep of the system drive (run from an elevated prompt)
+set GOWINDOWLICKER_OUT_DIR=C:\gwl\out
+set GOWINDOWLICKER_WORK_DIR=C:\gwl\work
+gowindowlicker live
+
+rem one parser, one volume
+set GORB_OUT_DIR=C:\gwl\out
+set GORB_WORK_DIR=C:\gwl\work
+set GORB_LIVE=D:
+gowindowlicker gorb
+```
+
+How it works, and why it is sound for live response:
+
+- **Raw volume, read-only.** The artefact files are read from their on-disk
+  clusters through the raw NTFS volume (`\\.\C:`) with Velociraptor's
+  [go-ntfs](https://www.velocidex.com/golang/go-ntfs) — the same parser `gomft`
+  already uses — not through the file system. So the files Windows holds open
+  (the registry hives, `$MFT`, the `.evtx` logs, `SRUDB.dat`, each user's
+  `NTUSER.DAT`) are collected all the same, and the volume handle is opened for
+  read only: the evidence is never modified. No VSS, no external helper, no cgo
+  — it stays inside the one static binary.
+- **Same shape as a disk image.** The sets are pulled into `WORK_DIR` with their
+  volume-relative paths preserved, the ordinary batch loop runs over that
+  scratch tree, records land under `<OUT_DIR>/<subtool>/live/…` (a sub-tool run:
+  `<OUT_DIR>/live/…`), and the scratch is removed. Nothing is written back to
+  the host.
+- **Administrator required.** Opening a raw volume needs elevation; without it
+  the run ends with a config error saying so.
+- **Windows only.** On any other OS a live run is a clean config error — the
+  loose-tree and disk-image modes are the cross-platform ones.
+- Point `*_OUT_DIR` / `*_WORK_DIR` at real Windows paths (the `/output`,
+  `/work` defaults are container conventions); `WORK_DIR` needs room for the
+  pulled artefacts (notably `$MFT`), so put it on a disk-backed path.
+
 ## Env (the sweep)
 
 | Variable | Default | Meaning |
@@ -65,6 +111,7 @@ read-only and shared by every sub-run.
 | `GOWINDOWLICKER_OUT_DIR` | `/output` | output root: one `<subtool>/` tree per parser |
 | `GOWINDOWLICKER_WORK_DIR` | `/work` | scratch (writable tmpfs), shared by every sub-run; a disk image's artefact sets are pulled here while its parsers run — bind a disk-backed directory for large images |
 | `GOWINDOWLICKER_IMAGE` | *(empty)* | run **on a disk image**: its path relative to `INPUT_DIR` (E01/Ex01, raw, VMDK, VHDX, VHD, QCOW2, VDI, DMG (.dmg), sparseimage (.sparseimage)). The baked-in [gomount](../gomount) pulls every parser's artefact set (`windows-core`) out of the OS volume into `WORK_DIR`, the parsers run over that, records land under `<OUT_DIR>/<subtool>/<image>/…`, the scratch goes — nothing is exported. Empty = the loose tree itself plus every image directly under it. A sub-tool run reads `<SUBTOOL>_IMAGE` and writes `<OUT_DIR>/<image>/…` |
+| `GOWINDOWLICKER_LIVE` | *(empty)* | run **on the live Windows host** (see [Running on the live system](#running-on-the-live-system)). `1/true/yes/on`/`auto` take the system drive; a letter (`C` / `C:`) names a volume. Every parser's artefact set (`windows-core`) is pulled off the raw NTFS volume into `WORK_DIR`, the parsers run over that, records land under `<OUT_DIR>/<subtool>/live/…`, the scratch goes. **Windows only, Administrator required**; mutually exclusive with `GOWINDOWLICKER_IMAGE`. A sub-tool run reads `<SUBTOOL>_LIVE` and writes `<OUT_DIR>/live/…` |
 | `GOWINDOWLICKER_FORCE` | `0` | `1/true/yes/on`: rerun items that already have valid output, in every sub-run |
 | `GOWINDOWLICKER_LOG_LEVEL` | `info` | `error\|warn\|info\|debug`, stderr only, applied to every sub-run |
 
@@ -86,7 +133,11 @@ The sweep (bare or `lick`) writes one structured tree under
 <OUT_DIR>/<subtool>/<item>/<subtool>.<jsonl|csv>   per parser, one folder per discovered artefact
 ```
 
-and prints **one** aggregate JSON summary line with every sub-tool's own
+A disk-image or live-host sweep nests one level down under the host —
+`<OUT_DIR>/<subtool>/<image>/<item>/…` or `<OUT_DIR>/<subtool>/live/<item>/…` —
+and the summary gains `"images": [...]` or `"live": true`.
+
+It prints **one** aggregate JSON summary line with every sub-tool's own
 summary embedded under `subtools` (plus the roll-up counters, `status`,
 `exit`). A single-parser sub-run prints that parser's ordinary summary line
 and writes as its own README declares.

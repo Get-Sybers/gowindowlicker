@@ -14,7 +14,7 @@ description: >
   there is no layered knowledge store: the Windows artefacts are
   self-contained, so every sub-run is independent.
 
-subtools: [lick, goprefetch, goese, gorb, gomft, goamcache, goappcompat, goevtx, gore, gosbe, gole, gojle, gowxt]
+subtools: [lick, live, goprefetch, goese, gorb, gomft, goamcache, goappcompat, goevtx, gore, gosbe, gole, gojle, gowxt]
 
 # The sweep's own block. A parser sub-tool run (`gowindowlicker gorb`) reads
 # that tool's canonical <SUBTOOL>_* block instead (GORB_INPUT_DIR,
@@ -27,6 +27,7 @@ env:
   GOWINDOWLICKER_OUT_DIR:   {required: false, default: /output, desc: 'output root: one <subtool>/ tree per parser'}
   GOWINDOWLICKER_WORK_DIR:  {required: false, default: /work,   desc: 'scratch (writable tmpfs), shared by every sub-run; a disk image''s artefact sets are pulled here while its parsers run, so bind a disk-backed dir for large images'}
   GOWINDOWLICKER_IMAGE:     {required: false, default: "",      desc: 'run ON one disk image: its path relative to INPUT_DIR (E01/Ex01, raw, VMDK, VHDX, VHD, QCOW2, VDI, DMG (.dmg), sparseimage (.sparseimage)). The baked-in gomount pulls every parser''s artefact set (windows-core) out of the OS volume into WORK_DIR, the parsers run over that, records land under <OUT_DIR>/<subtool>/<image>/, nothing is exported. Empty = the loose tree itself plus every image directly under it; a sub-tool run reads <SUBTOOL>_IMAGE and writes <OUT_DIR>/<image>/'}
+  GOWINDOWLICKER_LIVE:      {required: false, default: "",      desc: 'run ON the live Windows host (the `live` word is the same). 1/true/yes/on/auto take the system drive, a letter (C or C:) names a volume. Every parser''s artefact set (windows-core) is read off the raw NTFS volume (\\.\C:) by go-ntfs — so files the OS holds open are collected from their clusters — into WORK_DIR, the parsers run over that, records land under <OUT_DIR>/<subtool>/live/, the scratch goes, nothing is written back. Read-only, WINDOWS ONLY, Administrator required; mutually exclusive with GOWINDOWLICKER_IMAGE. A sub-tool run reads <SUBTOOL>_LIVE and writes <OUT_DIR>/live/'}
   GOWINDOWLICKER_FORCE:     {required: false, default: "0", type: bool, desc: '1/true/yes/on reruns items that already have valid output, in every sub-run'}
   GOWINDOWLICKER_LOG_LEVEL: {required: false, default: info,    desc: 'error|warn|info|debug, stderr only, applied to every sub-run'}
 
@@ -46,8 +47,8 @@ summary_schema:
     ordinary summary line.
 
 outputs:
-  lick: "<OUT_DIR>/<subtool>/<item>/<subtool>.<jsonl|csv> per parser, one folder per discovered artefact; a disk image's artefacts one level down, <OUT_DIR>/<subtool>/<image>/<item>/"
-  subtool: "as that parser's package README declares (one folder per item under its OUT_DIR)"
+  lick: "<OUT_DIR>/<subtool>/<item>/<subtool>.<jsonl|csv> per parser, one folder per discovered artefact; a disk image's or the live host's artefacts one level down, <OUT_DIR>/<subtool>/<image>/<item>/ or <OUT_DIR>/<subtool>/live/<item>/"
+  subtool: "as that parser's package README declares (one folder per item under its OUT_DIR; a disk-image or live sub-tool run nests under <OUT_DIR>/<image>/ or <OUT_DIR>/live/)"
 
 argv_passthrough: >
   `gowindowlicker <subtool>` runs that parser's env-driven batch mode under

@@ -45,8 +45,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
-	"time"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
 
@@ -143,13 +141,15 @@ func parseOne(path string) (*record, error) {
 	}
 	rec := recordFromLnk(f, path)
 	// the .lnk file's own fs timestamps (the Source* columns). mtime is
-	// portable; atime comes from the Linux stat_t (the container is Linux). A
-	// birth time (SourceCreated) is not exposed by the Go stdlib on Linux, so
-	// that column is intentionally not part of the schema — see the record type.
+	// portable; atime comes from the OS-specific stat payload via
+	// sourceAccessTime (the Linux stat_t on Linux, the Win32 file attributes on
+	// Windows). A birth time (SourceCreated) is not exposed portably by the Go
+	// stdlib, so that column is intentionally not part of the schema — see the
+	// record type.
 	if st, err := os.Stat(path); err == nil {
 		rec.SourceModified = tstamp.RFC3339Nano(st.ModTime())
-		if sys, ok := st.Sys().(*syscall.Stat_t); ok {
-			rec.SourceAccessed = tstamp.RFC3339Nano(time.Unix(sys.Atim.Unix()))
+		if atime, ok := sourceAccessTime(st); ok {
+			rec.SourceAccessed = tstamp.RFC3339Nano(atime)
 		}
 	}
 	return rec, nil
