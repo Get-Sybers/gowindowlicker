@@ -2,6 +2,7 @@ package jle
 
 import (
 	"encoding/binary"
+	"slices"
 	"testing"
 	"time"
 	"unicode/utf16"
@@ -135,7 +136,7 @@ func TestParseDestListTruncatedIsError(t *testing.T) {
 	hdr := make([]byte, 32)
 	binary.LittleEndian.PutUint32(hdr[0:], 3)
 	binary.LittleEndian.PutUint32(hdr[4:], 2) // header claims 2 entries
-	full := append(hdr, entry...)
+	full := slices.Concat(hdr, entry)
 	// Cut the stream inside the path of the (only present) first entry.
 	got, err := parseDestList(full[:len(full)-6])
 	if err == nil {

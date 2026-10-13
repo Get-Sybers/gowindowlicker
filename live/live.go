@@ -165,7 +165,7 @@ func Collect(getenv func(string) string, work, drive string, sets []string) (str
 		os.RemoveAll(scratch)
 		return "", err
 	}
-	defer closer()
+	defer func() { _ = closer() }()
 
 	paged, err := ntfs.NewPagedReader(reader, pageSize, pageCache)
 	if err != nil {

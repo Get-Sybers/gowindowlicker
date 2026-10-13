@@ -43,13 +43,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/Get-Sybers/gopinfo/tstamp"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+
+	"github.com/Get-Sybers/gopinfo/tstamp"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
 

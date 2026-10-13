@@ -46,7 +46,7 @@ import (
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
 
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // registers the sqlite driver for database/sql
 )
 
 type record struct {

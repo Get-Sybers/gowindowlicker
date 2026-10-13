@@ -3,11 +3,12 @@ package le
 import (
 	"archive/tar"
 	"bytes"
-	"github.com/Get-Sybers/gopinfo/tstamp"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/Get-Sybers/gopinfo/tstamp"
 
 	lnk "github.com/parsiya/golnk"
 )

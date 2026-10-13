@@ -37,7 +37,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/Get-Sybers/gopinfo/tstamp"
 	"io"
 	"io/fs"
 	"os"
@@ -45,6 +44,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/Get-Sybers/gopinfo/tstamp"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
 
@@ -205,7 +206,7 @@ func parseTarStream(r io.Reader, emit func(*record) error, quiet bool) (parsed, 
 			// A malformed tar desynchronises every entry after it — fatal.
 			return parsed, failed, fmt.Errorf("read tar: %w", nextErr)
 		}
-		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
+		if hdr.Typeflag != tar.TypeReg {
 			continue // only regular files carry bytes to parse
 		}
 		byExt := strings.EqualFold(filepath.Ext(hdr.Name), ".lnk")

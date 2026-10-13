@@ -5,12 +5,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"github.com/Get-Sybers/gopinfo/tstamp"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/Get-Sybers/gopinfo/tstamp"
 )
 
 func TestTSZeroAndValue(t *testing.T) {
