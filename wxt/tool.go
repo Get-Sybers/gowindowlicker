@@ -44,9 +44,9 @@ import (
 	"strings"
 	"time"
 
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	_ "modernc.org/sqlite" // registers the sqlite driver for database/sql
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
 )
 
 type record struct {

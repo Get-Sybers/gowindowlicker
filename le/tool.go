@@ -45,11 +45,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Get-Sybers/gopinfo/tstamp"
+	lnk "github.com/parsiya/golnk"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
-
-	lnk "github.com/parsiya/golnk"
+	"github.com/Get-Sybers/gopinfo/tstamp"
 )
 
 type record struct {

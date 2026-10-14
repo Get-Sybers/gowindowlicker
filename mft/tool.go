@@ -50,11 +50,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Get-Sybers/gopinfo/tstamp"
+	ntfs "www.velocidex.com/golang/go-ntfs/parser"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
-
-	ntfs "www.velocidex.com/golang/go-ntfs/parser"
+	"github.com/Get-Sybers/gopinfo/tstamp"
 )
 
 // record is the emitted per-entry JSON object (the columns go-ntfs can

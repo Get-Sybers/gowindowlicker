@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Get-Sybers/gopinfo/tstamp"
-
 	lnk "github.com/parsiya/golnk"
+
+	"github.com/Get-Sybers/gopinfo/tstamp"
 )
 
 func TestTsZeroIsEmpty(t *testing.T) {

@@ -53,10 +53,10 @@ import (
 	"time"
 	"unicode/utf16"
 
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	lnk "github.com/parsiya/golnk"
 	"github.com/richardlehane/mscfb"
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
 )
 
 type destEntry struct {

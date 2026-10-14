@@ -50,12 +50,11 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/Get-Sybers/gopinfo/tstamp"
-
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	"www.velocidex.com/golang/regparser"
 	"www.velocidex.com/golang/regparser/appcompatcache"
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gopinfo/tstamp"
 )
 
 type record struct {

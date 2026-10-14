@@ -43,9 +43,9 @@ import (
 	"strings"
 	"time"
 
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	prefetch "www.velocidex.com/golang/go-prefetch"
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
 )
 
 type record struct {
