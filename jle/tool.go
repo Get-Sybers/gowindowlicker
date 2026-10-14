@@ -41,6 +41,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -52,10 +53,10 @@ import (
 	"time"
 	"unicode/utf16"
 
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	lnk "github.com/parsiya/golnk"
 	"github.com/richardlehane/mscfb"
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
 )
 
 type destEntry struct {
@@ -246,7 +247,7 @@ func parseReader(ra io.ReaderAt, sourceFile string) (*record, error) {
 	lnkStreams := map[string][]byte{}
 	for {
 		entry, err := doc.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break // clean end of stream enumeration
 		}
 		if err != nil {
@@ -362,7 +363,7 @@ func runTar(r io.Reader, enc *json.Encoder, quiet bool) int {
 	failed := 0
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -370,7 +371,7 @@ func runTar(r io.Reader, enc *json.Encoder, quiet bool) int {
 			fmt.Fprintf(os.Stderr, "gojle: read tar: %v\n", err)
 			os.Exit(1)
 		}
-		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
+		if hdr.Typeflag != tar.TypeReg {
 			continue // only regular files carry a jump list
 		}
 		if !isJumpList(hdr.Name) {

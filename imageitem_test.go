@@ -9,11 +9,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/Get-Sybers/gopinfo/diskimage"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Get-Sybers/gopinfo/diskimage"
 )
 
 // gomountStub writes an executable that parses --out and stages the record

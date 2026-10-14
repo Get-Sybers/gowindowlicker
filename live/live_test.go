@@ -7,6 +7,7 @@ package live
 // which a portable unit test cannot stand up.
 
 import (
+	"errors"
 	"runtime"
 	"strings"
 	"testing"
@@ -80,7 +81,7 @@ func TestCollectRefusedOffWindows(t *testing.T) {
 		t.Skip("off-Windows contract test")
 	}
 	scratch, err := Collect(env(nil), t.TempDir(), "C", []string{"windows-core"})
-	if err != ErrUnsupported {
+	if !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("Collect off Windows: err = %v, want ErrUnsupported", err)
 	}
 	if scratch != "" {

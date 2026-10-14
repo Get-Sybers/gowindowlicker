@@ -6,7 +6,7 @@
 //
 // Output is JSONL (one object per .pf) or CSV. Field notes:
 // Executable/RunCount/LastRun/PreviousRunN/FilesAccessed/Hash/Version carry
-// the same artifact facts; volume info blocks are not emitted (not exposed by
+// the same artefact facts; volume info blocks are not emitted (not exposed by
 // go-prefetch). SourceFilename and SourceModified come from the input file.
 //
 // Inputs: -f a single file, -d a directory tree, or --tar a TAR archive on
@@ -43,9 +43,9 @@ import (
 	"strings"
 	"time"
 
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	prefetch "www.velocidex.com/golang/go-prefetch"
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
 )
 
 type record struct {
@@ -175,7 +175,7 @@ func parseTarStream(r io.Reader, emit func(*record) error, quiet bool) (parsed, 
 		if nextErr != nil {
 			return parsed, failed, fmt.Errorf("read tar: %w", nextErr)
 		}
-		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
+		if hdr.Typeflag != tar.TypeReg {
 			continue // only regular files carry bytes to parse
 		}
 		if !strings.EqualFold(filepath.Ext(hdr.Name), ".pf") {

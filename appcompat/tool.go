@@ -43,7 +43,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/Get-Sybers/gopinfo/tstamp"
 	"io"
 	"io/fs"
 	"os"
@@ -51,10 +50,11 @@ import (
 	"sort"
 	"strconv"
 
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	"www.velocidex.com/golang/regparser"
 	"www.velocidex.com/golang/regparser/appcompatcache"
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gopinfo/tstamp"
 )
 
 type record struct {

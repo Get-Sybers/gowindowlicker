@@ -1,11 +1,12 @@
 package appcompat
 
 import (
-	"github.com/Get-Sybers/gopinfo/tstamp"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/Get-Sybers/gopinfo/tstamp"
 )
 
 func mustWrite(t *testing.T, path string, data []byte) {

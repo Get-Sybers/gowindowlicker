@@ -251,7 +251,7 @@ func parseTarStream(r io.Reader, emit func(*record) error) (emitted, failed int,
 			// A malformed tar desynchronises every entry after it — fatal.
 			return emitted, failed, fmt.Errorf("read tar: %w", nextErr)
 		}
-		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
+		if hdr.Typeflag != tar.TypeReg {
 			continue // only regular files carry bytes to parse
 		}
 

@@ -44,12 +44,13 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/Get-Sybers/gopinfo/diskimage"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Get-Sybers/gopinfo/diskimage"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
 
@@ -127,7 +128,7 @@ func run(args []string, getenv func(string) string, stdout io.Writer) int {
 			fmt.Fprintf(stdout, "gowindowlicker %s\n", version)
 			return 0
 		case "print-contract":
-			io.WriteString(stdout, contractYML)
+			_, _ = io.WriteString(stdout, contractYML)
 			return 0
 		}
 	}
@@ -271,7 +272,7 @@ func configErrorSummary(tool string, err error, stdout io.Writer) int {
 		Error: err.Error(), Exit: 2, Started: time.Now().UTC().Format(time.RFC3339)}
 	enc := json.NewEncoder(stdout)
 	enc.SetEscapeHTML(false)
-	enc.Encode(sum)
+	_ = enc.Encode(sum)
 	return 2
 }
 
