@@ -47,10 +47,11 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/go-ese/parser"
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 // Friendly names for well-known SRUM provider tables. The raw GUID stays in
@@ -215,7 +216,7 @@ func openOut(dir, name string) (io.WriteCloser, error) {
 }
 
 func dumpTable(cat *parser.Catalog, table string, idMap map[int64]idEntry,
-	jsonDir, csvDir, sourceDb string) (int, error) {
+	jsonDir, csvDir, sourceDb string, st origin.Stamp) (int, error) {
 	enrich := func(row *ordereddict.Dict) {
 		if idMap == nil {
 			return
@@ -309,9 +310,23 @@ func dumpTable(cat *parser.Catalog, table string, idMap map[int64]idEntry,
 			out.Set("TableAlias", a)
 		}
 		out.MergeFrom(row)
+		stampDict(out, st)
 		return enc.Encode(out)
 	})
 	return rows, err
+}
+
+// stampDict brands one per-table JSONL row with the evidence-asset identity. The
+// per-table files are the goese rows byakugan keys by asset, so the Origin (and
+// host.id) ride each one; the per-table CSV files, like every CSV output, cannot
+// carry the nested block and so go unstamped.
+func stampDict(d *ordereddict.Dict, st origin.Stamp) {
+	if st.Origin != nil {
+		d.Set("Origin", st.Origin)
+	}
+	if st.Host != nil {
+		d.Set("Host", st.Host)
+	}
 }
 
 type dbHit struct {
@@ -374,7 +389,7 @@ func dbSubdir(hit dbHit, used map[string]int) string {
 // file name and row count. Returns the number of failed tables plus any fatal
 // open/catalog error.
 func processDb(path, sourceDb, jsonDir, csvDir, tablesFlag string,
-	list, strictTables, quiet bool, onTable func(table, file string, rows int)) (int, error) {
+	list, strictTables, quiet bool, st origin.Stamp, onTable func(table, file string, rows int)) (int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, err
@@ -461,7 +476,7 @@ func processDb(path, sourceDb, jsonDir, csvDir, tablesFlag string,
 
 	failed := 0
 	for _, table := range selected {
-		rows, err := dumpTable(cat, table, idMap, jsonDir, csvDir, sourceDb)
+		rows, err := dumpTable(cat, table, idMap, jsonDir, csvDir, sourceDb, st)
 		if err != nil {
 			failed++
 			fmt.Fprintf(os.Stderr, "goese: FAILED %s after %d rows: %v\n", label(table), rows, err)
@@ -487,6 +502,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json", "csv"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // batchDiscover finds every SRUM (SRUDB.dat) and SUM (SUM/*.mdb) database under
@@ -510,6 +526,7 @@ type tableIndexEntry struct {
 	Alias string `json:"TableAlias,omitempty"`
 	File  string `json:"File"`
 	Rows  int    `json:"Rows"`
+	origin.Identity
 }
 
 // batchProcess dumps every requested table of one database into itemDir (one
@@ -527,7 +544,8 @@ func batchProcess(cfg *batch.Config, item, itemDir string, w io.Writer) (int, er
 	}
 	var index []tableIndexEntry
 	total := 0
-	failed, err := processDb(item, rel, jsonDir, csvDir, cfg.Env("TABLES", ""), false, false, cfg.Quiet(),
+	st := cfg.Stamp()
+	failed, err := processDb(item, rel, jsonDir, csvDir, cfg.Env("TABLES", ""), false, false, cfg.Quiet(), st,
 		func(table, file string, rows int) {
 			index = append(index, tableIndexEntry{Table: table, Alias: aliasFor(table), File: file, Rows: rows})
 			total += rows
@@ -552,6 +570,7 @@ func batchProcess(cfg *batch.Config, item, itemDir string, w io.Writer) (int, er
 	} else {
 		enc := json.NewEncoder(w)
 		for _, e := range index {
+			e.Set(st)
 			if err := enc.Encode(e); err != nil {
 				return total, err
 			}
@@ -584,7 +603,7 @@ func Main(version, contractYML string) {
 
 	// Mode 2: one extracted database, output exactly as requested.
 	if *file != "" {
-		failed, err := processDb(*file, "", *jsonDir, *csvDir, *tables, *list, true, *quiet, nil)
+		failed, err := processDb(*file, "", *jsonDir, *csvDir, *tables, *list, true, *quiet, origin.Stamp{}, nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "goese: %s: %v\n", *file, err)
 			os.Exit(1)
@@ -625,7 +644,7 @@ func Main(version, contractYML string) {
 		if !*quiet {
 			fmt.Fprintf(os.Stderr, "goese: %s database %s -> %s\n", hit.kind, rel, sub)
 		}
-		ft, err := processDb(hit.path, rel, jd, cd, *tables, *list, false, *quiet, nil)
+		ft, err := processDb(hit.path, rel, jd, cd, *tables, *list, false, *quiet, origin.Stamp{}, nil)
 		if err != nil {
 			failedDbs++
 			fmt.Fprintf(os.Stderr, "goese: FAILED %s: %v\n", rel, err)

@@ -49,6 +49,7 @@ import (
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
 	"github.com/Get-Sybers/gopinfo/tstamp"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 type record struct {
@@ -74,6 +75,7 @@ type record struct {
 	TargetIDAbsolutePath string `json:"TargetIDAbsolutePath,omitempty"`
 	HeaderFlags          string `json:"HeaderFlags,omitempty"`
 	FileAttributes       string `json:"FileAttributes,omitempty"`
+	origin.Identity
 }
 
 var csvHeader = []string{
@@ -283,6 +285,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json", "csv"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // batchDiscover walks the input tree and keeps every .lnk (by extension or the
@@ -309,6 +312,7 @@ func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
 		cw.Flush()
 		return 1, cw.Error()
 	}
+	rec.Set(cfg.Stamp())
 	return 1, json.NewEncoder(w).Encode(rec)
 }
 

@@ -45,6 +45,7 @@ import (
 	"time"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 
 	"github.com/Velocidex/ordereddict"
 	"www.velocidex.com/golang/evtx"
@@ -66,6 +67,7 @@ type record struct {
 	MapDescription interface{} `json:"MapDescription"` // always null — no Maps layer
 	SourceFile     string      `json:"SourceFile"`
 	Payload        string      `json:"Payload"` // JSON string, EventData/UserData
+	origin.Identity
 }
 
 // asText renders an EventData value as the #text convention requires: a plain
@@ -306,6 +308,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // batchDiscover walks the input tree and keeps every .evtx (by extension or
@@ -318,8 +321,9 @@ func batchDiscover(cfg *batch.Config) ([]string, error) {
 // and unrenderable records are dropped and reported on stderr; the log still
 // counts as processed.
 func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
+	st := cfg.Stamp()
 	enc := json.NewEncoder(w)
-	n, skipped, err := parseFile(item, func(r *record) error { return enc.Encode(r) }, nil)
+	n, skipped, err := parseFile(item, func(r *record) error { r.Set(st); return enc.Encode(r) }, nil)
 	if skipped > 0 {
 		cfg.Logf(batch.LogWarn, "%s: %d record(s) dropped (torn chunk/unrenderable)", item, skipped)
 	}

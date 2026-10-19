@@ -214,7 +214,7 @@ func runSubOnImage(s sub, selected string, getenv func(string) string, stdout io
 	if err != nil {
 		return configErrorSummary(s.name, err, stdout)
 	}
-	scratch, err := diskimage.MaterialiseImage(getenv, work, images[0], s.sets)
+	scratch, err := materialise(getenv, work, images[0], s.sets)
 	if err != nil {
 		return configErrorSummary(s.name, err, stdout)
 	}
@@ -333,7 +333,7 @@ func runLick(getenv func(string) string, stdout io.Writer) int {
 		}
 		for _, img := range images {
 			host := diskimage.ImageItemName(in, img)
-			scratch, err := diskimage.MaterialiseImage(getenv, work, img, sweepSets)
+			scratch, err := materialise(getenv, work, img, sweepSets)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "gowindowlicker: %s: %v\n", host, err)
 				sum.Failed++

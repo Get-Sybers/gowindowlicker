@@ -55,6 +55,7 @@ import (
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
 	"github.com/Get-Sybers/gopinfo/tstamp"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 type record struct {
@@ -63,6 +64,7 @@ type record struct {
 	Path                string `json:"Path"`
 	LastModifiedTimeUTC string `json:"LastModifiedTimeUTC"`
 	SourceFile          string `json:"SourceFile"`
+	origin.Identity
 }
 
 var csvHeader = []string{"ControlSet", "CacheEntryPosition", "Path", "LastModifiedTimeUTC", "SourceFile"}
@@ -227,12 +229,14 @@ func parseHive(path, workDir string, quiet bool) ([]*record, error) {
 type emitter struct {
 	enc *json.Encoder
 	cw  *csv.Writer
+	st  origin.Stamp // the evidence-asset identity branded onto JSONL rows
 }
 
 func (e *emitter) emit(r *record) error {
 	if e.cw != nil {
 		return e.cw.Write(r.csvRow())
 	}
+	r.Set(e.st)
 	return e.enc.Encode(r)
 }
 
@@ -280,6 +284,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json", "csv"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // hasAppCompatCache opens the committed hive and reports whether its current
@@ -334,6 +339,7 @@ func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	e.st = cfg.Stamp()
 	recs, err := parseHive(item, cfg.WorkDir, cfg.Quiet())
 	if err != nil {
 		return 0, err

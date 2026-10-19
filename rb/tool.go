@@ -58,6 +58,7 @@ import (
 	"unicode/utf16"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 type record struct {
@@ -66,6 +67,7 @@ type record struct {
 	FileName   string `json:"FileName"`
 	FileSize   int64  `json:"FileSize"`
 	DeletedOn  string `json:"DeletedOn"`
+	origin.Identity
 }
 
 var csvHeader = []string{"SourceName", "FileType", "FileName", "FileSize", "DeletedOn"}
@@ -80,6 +82,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json", "csv"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // batchDiscover walks the input tree and keeps every file whose header is a $I
@@ -117,6 +120,7 @@ func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
 		cw.Flush()
 		return 1, cw.Error()
 	}
+	rec.Set(cfg.Stamp())
 	return 1, json.NewEncoder(w).Encode(rec)
 }
 
