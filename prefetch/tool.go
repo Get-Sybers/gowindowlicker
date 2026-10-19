@@ -46,7 +46,6 @@ import (
 	prefetch "www.velocidex.com/golang/go-prefetch"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
