@@ -70,13 +70,11 @@ func TestSubtoolStampsOriginFromManifest(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, buf.String())
 	}
 
-	matches, _ := filepath.Glob(filepath.Join(out, "disk.vmdk", "*", "gorb.jsonl"))
-	if len(matches) != 1 {
-		t.Fatalf("gorb output: %v", matches)
-	}
-	data, err := os.ReadFile(matches[0])
+	// flat layout: the single-subtool-on-image run writes <OUT_DIR>/<asset-id>.jsonl,
+	// named by the strongest manifest id — here the disk serial from the metadata row.
+	data, err := os.ReadFile(filepath.Join(out, "WD-WX11A.jsonl"))
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("flat output not at <out>/<disk-serial>.jsonl: %v", err)
 	}
 	var row struct {
 		FileName string         `json:"FileName"`

@@ -108,10 +108,10 @@ How it works, and why it is sound for live response:
 | Variable | Default | Meaning |
 |---|---|---|
 | `GOWINDOWLICKER_INPUT_DIR` | `/input` | evidence tree, recursed read-only, shared by every sub-run |
-| `GOWINDOWLICKER_OUT_DIR` | `/output` | output root: one `<subtool>/` tree per parser |
+| `GOWINDOWLICKER_OUT_DIR` | `/output` | output root: one `<subtool>/` directory per parser, each holding one `<asset-id>.jsonl` per evidence asset |
 | `GOWINDOWLICKER_WORK_DIR` | `/work` | scratch (writable tmpfs), shared by every sub-run; a disk image's artefact sets are pulled here while its parsers run — bind a disk-backed directory for large images |
-| `GOWINDOWLICKER_IMAGE` | *(empty)* | run **on a disk image**: its path relative to `INPUT_DIR` (E01/Ex01, raw, VMDK, VHDX, VHD, QCOW2, VDI, DMG (.dmg), sparseimage (.sparseimage)). The baked-in [gomount](../gomount) pulls every parser's artefact set (`windows-core`) out of the OS volume into `WORK_DIR`, the parsers run over that, records land under `<OUT_DIR>/<subtool>/<image>/…`, the scratch goes — nothing is exported. Empty = the loose tree itself plus every image directly under it. A sub-tool run reads `<SUBTOOL>_IMAGE` and writes `<OUT_DIR>/<image>/…` |
-| `GOWINDOWLICKER_LIVE` | *(empty)* | run **on the live Windows host** (see [Running on the live system](#running-on-the-live-system)). `1/true/yes/on`/`auto` take the system drive; a letter (`C` / `C:`) names a volume. Every parser's artefact set (`windows-core`) is pulled off the raw NTFS volume into `WORK_DIR`, the parsers run over that, records land under `<OUT_DIR>/<subtool>/live/…`, the scratch goes. **Windows only, Administrator required**; mutually exclusive with `GOWINDOWLICKER_IMAGE`. A sub-tool run reads `<SUBTOOL>_LIVE` and writes `<OUT_DIR>/live/…` |
+| `GOWINDOWLICKER_IMAGE` | *(empty)* | run **on a disk image**: its path relative to `INPUT_DIR` (E01/Ex01, raw, VMDK, VHDX, VHD, QCOW2, VDI, DMG (.dmg), sparseimage (.sparseimage)). The baked-in [gomount](../gomount) pulls every parser's artefact set (`windows-core`) out of the OS volume into `WORK_DIR`, the parsers run over that, records land flat at `<OUT_DIR>/<subtool>/<asset-id>.jsonl` — one file per (parser, asset), the per-artefact source path in each row's `Origin.Path` — the scratch goes, nothing is exported. The asset id is the strongest gomount-manifest identifier (`disk_serial`, else `volume_guid`, else `image_sha256`), falling back to the image item name. Empty = the loose tree itself plus every image directly under it. A sub-tool run reads `<SUBTOOL>_IMAGE` and writes `<OUT_DIR>/<asset-id>.jsonl` |
+| `GOWINDOWLICKER_LIVE` | *(empty)* | run **on the live Windows host** (see [Running on the live system](#running-on-the-live-system)). `1/true/yes/on`/`auto` take the system drive; a letter (`C` / `C:`) names a volume. Every parser's artefact set (`windows-core`) is pulled off the raw NTFS volume into `WORK_DIR`, the parsers run over that, records land flat at `<OUT_DIR>/<subtool>/<asset-id>.jsonl` (a live run has no manifest, so the asset id is the live host directory name), the scratch goes. **Windows only, Administrator required**; mutually exclusive with `GOWINDOWLICKER_IMAGE`. A sub-tool run reads `<SUBTOOL>_LIVE` and writes `<OUT_DIR>/<asset-id>.jsonl` |
 | `GOWINDOWLICKER_FORCE` | `0` | `1/true/yes/on`: rerun items that already have valid output, in every sub-run |
 | `GOWINDOWLICKER_LOG_LEVEL` | `info` | `error\|warn\|info\|debug`, stderr only, applied to every sub-run |
 
@@ -126,16 +126,24 @@ JSONL-only), and `GORE_BATCH` keeps selecting gore's `.reb` definition
 
 ## Output
 
-The sweep (bare or `lick`) writes one structured tree under
-`GOWINDOWLICKER_OUT_DIR`:
+The sweep (bare or `lick`) writes one flat file per (parser, evidence asset)
+under `GOWINDOWLICKER_OUT_DIR`:
 
 ```
-<OUT_DIR>/<subtool>/<item>/<subtool>.<jsonl|csv>   per parser, one folder per discovered artefact
+<OUT_DIR>/<subtool>/<asset-id>.jsonl   per parser — all of that parser's records for one asset
 ```
 
-A disk-image or live-host sweep nests one level down under the host —
-`<OUT_DIR>/<subtool>/<image>/<item>/…` or `<OUT_DIR>/<subtool>/live/<item>/…` —
-and the summary gains `"images": [...]` or `"live": true`.
+`<asset-id>` is the strongest identifier the gomount stage manifest carries for
+the image — `disk_serial` → `volume_guid` → `image_sha256` — falling back to the
+image item name (a loose tree or live host: the host directory name). The
+per-artefact source path lives in each row's `Origin.Path`, so collapsing the
+old `<image>/<item>/` nesting loses no provenance; two acquisitions of one disk
+share an `<asset-id>` and merge by appending. A disk-image sweep's summary gains
+`"images": [...]`, a live sweep `"live": true`.
+
+A non-JSONL format (`<SUBTOOL>_FORMAT=csv`) is **not** flattened: concatenating
+per-item/per-table CSVs would repeat headers and merge disjoint schemas, so those
+files keep their nested per-item layout instead.
 
 It prints **one** aggregate JSON summary line with every sub-tool's own
 summary embedded under `subtools` (plus the roll-up counters, `status`,

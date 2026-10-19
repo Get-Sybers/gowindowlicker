@@ -73,13 +73,13 @@ func TestLickRunsOnImage(t *testing.T) {
 	if len(sum.Images) != 1 || sum.Images[0] != "disk.vmdk" {
 		t.Fatalf("images = %v", sum.Images)
 	}
-	// the record landed one level down: <out>/gorb/<image>/<item>/gorb.jsonl
-	matches, _ := filepath.Glob(filepath.Join(out, "gorb", "disk.vmdk", "*", "gorb.jsonl"))
-	if len(matches) != 1 {
-		t.Fatalf("gorb output under the image host: %v", matches)
+	// flat: one file per (subtool, asset), named by the asset id — this stub
+	// writes no manifest, so the fallback is the image item name.
+	if _, err := os.Stat(filepath.Join(out, "gorb", "disk.vmdk.jsonl")); err != nil {
+		t.Fatalf("gorb flat output missing: %v", err)
 	}
-	if strays, _ := filepath.Glob(filepath.Join(out, "gorb", "*", "gorb.jsonl")); len(strays) != 0 {
-		t.Fatalf("records at the loose level though an image was selected: %v", strays)
+	if nested, _ := filepath.Glob(filepath.Join(out, "gorb", "*", "gorb.jsonl")); len(nested) != 0 {
+		t.Fatalf("per-item nesting not flattened: %v", nested)
 	}
 	// the scratch tree is gone
 	entries, _ := os.ReadDir(work)
@@ -108,9 +108,10 @@ func TestSubtoolRunsOnImage(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, buf.String())
 	}
-	matches, _ := filepath.Glob(filepath.Join(out, "host.E01", "*", "gorb.jsonl"))
-	if len(matches) != 1 {
-		t.Fatalf("gorb output under <out>/<image>/: %v", matches)
+	// flat: <out>/<asset-id>.jsonl — the stub writes no manifest, so the fallback
+	// is the image item name.
+	if _, err := os.Stat(filepath.Join(out, "host.E01.jsonl")); err != nil {
+		t.Fatalf("gorb flat output not at <out>/<asset-id>.jsonl: %v", err)
 	}
 	if entries, _ := os.ReadDir(work); len(entries) != 0 {
 		t.Fatalf("scratch left behind: %v", entries)
