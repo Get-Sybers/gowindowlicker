@@ -141,6 +141,10 @@ old `<image>/<item>/` nesting loses no provenance; two acquisitions of one disk
 share an `<asset-id>` and merge by appending. A disk-image sweep's summary gains
 `"images": [...]`, a live sweep `"live": true`.
 
+A non-JSONL format (`<SUBTOOL>_FORMAT=csv`) is **not** flattened: concatenating
+per-item/per-table CSVs would repeat headers and merge disjoint schemas, so those
+files keep their nested per-item layout instead.
+
 It prints **one** aggregate JSON summary line with every sub-tool's own
 summary embedded under `subtools` (plus the roll-up counters, `status`,
 `exit`). A single-parser sub-run prints that parser's ordinary summary line

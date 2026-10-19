@@ -90,3 +90,34 @@ func TestMergeFlatIgnoresPartAndEmpty(t *testing.T) {
 		t.Fatalf("empty temp: outs=%v err=%v", outs, err)
 	}
 }
+
+// A csv-format run is not concatenable (per-table headers, disjoint schemas), so
+// mergeFlat preserves those files verbatim under their relative path rather than
+// joining them into a corrupt <asset-id>.csv.
+func TestMergeFlatPreservesNonJSONL(t *testing.T) {
+	out := t.TempDir()
+	tmp := t.TempDir()
+	stageFile(t, filepath.Join(tmp, "item1", "srum.csv"), "ts,app\n1,a.exe\n")
+	stageFile(t, filepath.Join(tmp, "item1", "sum.csv"), "user,count\nx,3\n") // different schema
+	stageFile(t, filepath.Join(tmp, "item1", "goese.jsonl"), "{\"table\":\"srum\"}\n")
+
+	outs, err := mergeFlat(tmp, out, "WD-WX11A", map[string]bool{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// the jsonl is flattened; the two csvs are preserved per-item, never merged
+	if _, err := os.Stat(filepath.Join(out, "WD-WX11A.jsonl")); err != nil {
+		t.Fatalf("jsonl not flattened: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "WD-WX11A.csv")); !os.IsNotExist(err) {
+		t.Fatalf("csv files were concatenated into <asset-id>.csv: %v", err)
+	}
+	for _, rel := range []string{"item1/srum.csv", "item1/sum.csv"} {
+		if _, err := os.Stat(filepath.Join(out, filepath.FromSlash(rel))); err != nil {
+			t.Fatalf("csv not preserved at %s: %v", rel, err)
+		}
+	}
+	if len(outs) != 3 {
+		t.Fatalf("outs = %v, want the jsonl plus the two preserved csvs", outs)
+	}
+}

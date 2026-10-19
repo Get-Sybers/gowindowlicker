@@ -76,12 +76,18 @@ func runFlat(t batch.Tool, o batch.Options, getenv func(string) string,
 	return code
 }
 
-// mergeFlat concatenates every record file the runtime wrote under tmp into one
-// <outDir>/<assetID>.<ext> per extension (jsonl in the pipeline), in path order
+// mergeFlat concatenates every JSONL record file the runtime wrote under tmp
+// into one <outDir>/<assetID>.jsonl — the flattened lane file — in path order
 // for a deterministic result. .part files (a crashed item the runtime did not
 // rename) are ignored.
+//
+// Non-JSONL output is NOT concatenable: a parser run in csv format
+// (<SUBTOOL>_FORMAT=csv) writes one file per item or per table, each with its
+// own header row and, across tables, disjoint schemas — raw-joining them would
+// be a malformed CSV. Those files are preserved verbatim under their relative
+// path instead, so a non-lane format stays valid (the documented lane is JSONL).
 func mergeFlat(tmp, outDir, assetID string, started map[string]bool) ([]string, error) {
-	byExt := map[string][]string{}
+	var jsonl, other []string
 	err := filepath.WalkDir(tmp, func(p string, d fs.DirEntry, werr error) error {
 		if werr != nil || d.IsDir() {
 			return werr
@@ -89,38 +95,67 @@ func mergeFlat(tmp, outDir, assetID string, started map[string]bool) ([]string, 
 		if strings.HasSuffix(p, ".part") {
 			return nil
 		}
-		ext := strings.TrimPrefix(filepath.Ext(p), ".")
-		if ext == "" {
-			return nil
+		switch {
+		case strings.EqualFold(filepath.Ext(p), ".jsonl"):
+			jsonl = append(jsonl, p)
+		case filepath.Ext(p) != "":
+			other = append(other, p)
 		}
-		byExt[ext] = append(byExt[ext], p)
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	if len(byExt) == 0 {
-		return nil, nil // the parser matched nothing; no flat file to write
+	if len(jsonl) == 0 && len(other) == 0 {
+		return nil, nil // the parser matched nothing; no file to write
 	}
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return nil, err
 	}
-	exts := make([]string, 0, len(byExt))
-	for ext := range byExt {
-		exts = append(exts, ext)
-	}
-	sort.Strings(exts)
 	var outs []string
-	for _, ext := range exts {
-		files := byExt[ext]
-		sort.Strings(files)
-		final := filepath.Join(outDir, assetID+"."+ext)
-		if err := appendFiles(final, files, started); err != nil {
+	if len(jsonl) > 0 {
+		sort.Strings(jsonl)
+		final := filepath.Join(outDir, assetID+".jsonl")
+		if err := appendFiles(final, jsonl, started); err != nil {
 			return nil, err
 		}
 		outs = append(outs, final)
 	}
+	// non-JSONL (a csv-format run): keep each per-item/per-table file as it is
+	sort.Strings(other)
+	for _, p := range other {
+		rel, rerr := filepath.Rel(tmp, p)
+		if rerr != nil {
+			return nil, rerr
+		}
+		dst := filepath.Join(outDir, rel)
+		if err := copyFile(p, dst); err != nil {
+			return nil, err
+		}
+		outs = append(outs, dst)
+	}
 	return outs, nil
+}
+
+// copyFile copies src onto dst (truncating), creating dst's parent directory.
+func copyFile(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = in.Close() }()
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	_, cerr := io.Copy(out, in)
+	if closeErr := out.Close(); cerr == nil {
+		cerr = closeErr
+	}
+	return cerr
 }
 
 // appendFiles writes the source files into final, truncating on the first touch

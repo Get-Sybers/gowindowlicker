@@ -47,7 +47,7 @@ summary_schema:
     ordinary summary line.
 
 outputs:
-  lick: "<OUT_DIR>/<subtool>/<asset-id>.jsonl per parser — one flat file per (sub-tool, evidence asset). asset-id is the strongest gomount-manifest identifier (disk_serial -> volume_guid -> image_sha256), else the image item name (loose/live: the host dir name). All of a parser's records for one asset go in the one file; the per-artefact source path is each row's Origin.Path, so no provenance is lost. Two acquisitions of one disk share an asset-id and merge by appending."
+  lick: "<OUT_DIR>/<subtool>/<asset-id>.jsonl per parser — one flat file per (sub-tool, evidence asset). asset-id is the strongest gomount-manifest identifier (disk_serial -> volume_guid -> image_sha256), else the image item name (loose/live: the host dir name). All of a parser's records for one asset go in the one file; the per-artefact source path is each row's Origin.Path, so no provenance is lost. Two acquisitions of one disk share an asset-id and merge by appending. A csv-format run (<SUBTOOL>_FORMAT=csv) is not flattened; its per-item/per-table files keep their nested layout."
   subtool: "<OUT_DIR>/<asset-id>.jsonl — one flat file, named as for lick (a disk-image sub-tool run by the manifest asset-id, a loose run by the input/host dir name)."
 
 argv_passthrough: >
