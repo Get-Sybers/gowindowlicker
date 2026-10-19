@@ -46,6 +46,7 @@ import (
 	prefetch "www.velocidex.com/golang/go-prefetch"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 type record struct {
@@ -60,6 +61,7 @@ type record struct {
 	LastRun        string   `json:"LastRun,omitempty"`
 	PreviousRuns   []string `json:"PreviousRuns,omitempty"`
 	FilesAccessed  []string `json:"FilesAccessed"`
+	origin.Identity
 }
 
 var csvHeader = []string{"SourceFilename", "SourceModified", "Executable", "Path",
@@ -78,6 +80,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json", "csv"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // batchDiscover walks the input tree and keeps every *.pf — the same selection
@@ -104,6 +107,7 @@ func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
 		cw.Flush()
 		return 1, cw.Error()
 	}
+	rec.Set(cfg.Stamp())
 	return 1, json.NewEncoder(w).Encode(rec)
 }
 

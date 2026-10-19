@@ -54,6 +54,7 @@ import (
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
 	"github.com/Get-Sybers/gopinfo/tstamp"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 // record is the emitted per-entry JSON object (the columns go-ntfs can
@@ -84,6 +85,7 @@ type record struct {
 	LastRecordChange0x30  string `json:"LastRecordChange0x30,omitempty"`
 	LastAccess0x10        string `json:"LastAccess0x10,omitempty"`
 	LastAccess0x30        string `json:"LastAccess0x30,omitempty"`
+	origin.Identity
 }
 
 var csvHeader = []string{
@@ -150,12 +152,14 @@ func highlightToRecord(h *ntfs.MFTHighlight) *record {
 type emitter struct {
 	enc *json.Encoder
 	cw  *csv.Writer
+	st  origin.Stamp // the evidence-asset identity branded onto JSONL rows
 }
 
 func (e *emitter) emit(r *record) error {
 	if e.cw != nil {
 		return e.cw.Write(r.csvRow())
 	}
+	r.Set(e.st)
 	return e.enc.Encode(r)
 }
 
@@ -308,6 +312,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json", "csv"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // batchDiscover walks the input tree and keeps every file that carries the
@@ -346,6 +351,7 @@ func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	e.st = cfg.Stamp()
 	n, err := parseFile(item, 1024, 4096, e)
 	if err != nil {
 		return n, err

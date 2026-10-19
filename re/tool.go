@@ -42,10 +42,11 @@ import (
 	"strconv"
 	"strings"
 
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	"gopkg.in/yaml.v3"
 	"www.velocidex.com/golang/regparser"
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 // rebBatch is a parsed .reb definition — YAML: a Description/Author
@@ -80,6 +81,7 @@ type record struct {
 	LastWriteTimestamp string `json:"LastWriteTimestamp"`
 	Recursive          bool   `json:"Recursive"`
 	Deleted            bool   `json:"Deleted"`
+	origin.Identity
 }
 
 var csvHeader = []string{"HivePath", "HiveType", "Category", "Description", "Comment",
@@ -243,12 +245,14 @@ func runHive(hivePath string, b *rebBatch, workDir string, replay, quiet bool, e
 type emitter struct {
 	enc *json.Encoder
 	cw  *csv.Writer
+	st  origin.Stamp // the evidence-asset identity branded onto JSONL rows
 }
 
 func (e *emitter) emit(r *record) error {
 	if e.cw != nil {
 		return e.cw.Write(r.csvRow())
 	}
+	r.Set(e.st)
 	return e.enc.Encode(r)
 }
 
@@ -318,6 +322,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json", "csv"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // The batch-mode settings resolved once by batchDiscover (GORE_BATCH, the
@@ -391,6 +396,7 @@ func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	e.st = cfg.Stamp()
 	n, err := runHive(item, batchDef, cfg.WorkDir, batchReplay, cfg.Quiet(), e)
 	if err != nil {
 		return n, err

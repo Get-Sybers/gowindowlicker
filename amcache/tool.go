@@ -43,9 +43,10 @@ import (
 	"strconv"
 	"strings"
 
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	"www.velocidex.com/golang/regparser"
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 // record carries the emitted file-entry columns (the subset
@@ -65,6 +66,7 @@ type record struct {
 	BinaryType                string `json:"BinaryType,omitempty"`
 	LinkDate                  string `json:"LinkDate,omitempty"`
 	Size                      int64  `json:"Size"`
+	origin.Identity
 }
 
 var csvHeader = []string{
@@ -155,12 +157,14 @@ func entryToRecord(sub *regparser.CM_KEY_NODE) *record {
 type emitter struct {
 	enc *json.Encoder
 	cw  *csv.Writer
+	st  origin.Stamp // the evidence-asset identity branded onto JSONL rows
 }
 
 func (e *emitter) emit(r *record) error {
 	if e.cw != nil {
 		return e.cw.Write(r.csvRow())
 	}
+	r.Set(e.st)
 	return e.enc.Encode(r)
 }
 
@@ -299,6 +303,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json", "csv"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // isAmcacheHive opens the committed hive and reports whether it carries the
@@ -356,6 +361,7 @@ func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	e.st = cfg.Stamp()
 	n, found, note, err := parseHive(item, e)
 	if err != nil {
 		return n, err

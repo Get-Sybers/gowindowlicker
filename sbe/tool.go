@@ -40,9 +40,10 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	batch "github.com/Get-Sybers/gopinfo/framework"
-
 	"www.velocidex.com/golang/regparser"
+
+	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 type record struct {
@@ -55,6 +56,7 @@ type record struct {
 	Value         string `json:"Value"`     // decoded item name ("" if not decoded)
 	AbsolutePath  string `json:"AbsolutePath"`
 	LastWriteTime string `json:"LastWriteTime"`
+	origin.Identity
 }
 
 // knownFolders maps the common shell-item root GUIDs to a readable name.
@@ -379,9 +381,15 @@ func atoiSafe(s string) int {
 	return n
 }
 
-type emitter struct{ enc *json.Encoder }
+type emitter struct {
+	enc *json.Encoder
+	st  origin.Stamp // the evidence-asset identity branded onto JSONL rows
+}
 
-func (e *emitter) emit(r *record) error { return e.enc.Encode(r) }
+func (e *emitter) emit(r *record) error {
+	r.Set(e.st)
+	return e.enc.Encode(r)
+}
 
 const regfMagic = "regf"
 
@@ -497,6 +505,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // batchReplay is the GOSBE_REPLAY setting, resolved once by batchDiscover.
@@ -537,7 +546,7 @@ func batchDiscover(cfg *batch.Config) ([]string, error) {
 // batchProcess walks the BagMRU roots of one hive (replaying sibling
 // .LOG1/.LOG2 into the work dir) into its JSONL record file.
 func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
-	e := &emitter{enc: json.NewEncoder(w)}
+	e := &emitter{enc: json.NewEncoder(w), st: cfg.Stamp()}
 	return runHive(item, cfg.WorkDir, batchReplay, cfg.Quiet(), e)
 }
 

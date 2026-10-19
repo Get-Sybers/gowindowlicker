@@ -47,6 +47,7 @@ import (
 	_ "modernc.org/sqlite" // registers the sqlite driver for database/sql
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 type record struct {
@@ -67,6 +68,7 @@ type record struct {
 	ETag             int64  `json:"ETag"`
 	Payload          string `json:"Payload"`
 	ClipboardPayload string `json:"ClipboardPayload"`
+	origin.Identity
 }
 
 var csvHeader = []string{
@@ -412,6 +414,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json", "csv"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // batchDiscover walks the input tree and keeps every SQLite database that
@@ -443,8 +446,9 @@ func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
 		emit = func(r *record) error { return cw.Write(r.csvRow()) }
 		flush = func() error { cw.Flush(); return cw.Error() }
 	} else {
+		st := cfg.Stamp()
 		enc := json.NewEncoder(w)
-		emit = func(r *record) error { return enc.Encode(r) }
+		emit = func(r *record) error { r.Set(st); return enc.Encode(r) }
 	}
 	n, err := parseDB(item, cfg.WorkDir, emit)
 	if err != nil {

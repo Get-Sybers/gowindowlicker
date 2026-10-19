@@ -57,6 +57,7 @@ import (
 	"github.com/richardlehane/mscfb"
 
 	batch "github.com/Get-Sybers/gopinfo/framework"
+	"github.com/Get-Sybers/gowindowlicker/origin"
 )
 
 type destEntry struct {
@@ -81,6 +82,7 @@ type record struct {
 	AppId           appID       `json:"AppId"`
 	SourceFile      string      `json:"SourceFile"`
 	DestListEntries []destEntry `json:"DestListEntries"`
+	origin.Identity
 }
 
 // dotnetDate renders a FILETIME-derived time in the record shape's
@@ -420,6 +422,7 @@ var Tool = batch.Tool{
 	Formats:  []string{"json"},
 	Discover: batchDiscover,
 	Process:  batchProcess,
+	Stamp:    origin.Hook,
 }
 
 // batchDiscover walks the input tree and keeps every AutomaticDestinations
@@ -435,6 +438,7 @@ func batchProcess(cfg *batch.Config, item, _ string, w io.Writer) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	rec.Set(cfg.Stamp())
 	if err := json.NewEncoder(w).Encode(rec); err != nil {
 		return 0, err
 	}
