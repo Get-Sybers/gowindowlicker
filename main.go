@@ -20,15 +20,15 @@
 // sub-tool's <SUBTOOL>_IMAGE) names one under the input tree — or every
 // image directly under it is taken — and the parsers run ON the image: the
 // baked-in gomount pulls their artefact sets out of the OS volume into the
-// work dir, the batch loop runs over that, records land under
-// <OUT_DIR>/<subtool>/<image>/, the scratch goes. Nothing is exported.
+// work dir, the batch loop runs over that, records land flat at
+// <OUT_DIR>/<subtool>/<asset-id>.jsonl, the scratch goes. Nothing is exported.
 //
 // The LIVE host is the same shape (live.go): GOWINDOWLICKER_LIVE (or a
 // sub-tool's <SUBTOOL>_LIVE), or the `live` word, runs the parsers ON the
 // running Windows machine — the same artefact sets are pulled off the raw
 // NTFS volume (\\.\C:) by go-ntfs, so the files the OS holds open are read
-// from their clusters all the same, into the work dir; records land under
-// <OUT_DIR>/<subtool>/live/, the scratch goes. Read-only, Windows-only,
+// from their clusters all the same, into the work dir; records land flat at
+// <OUT_DIR>/<subtool>/<asset-id>.jsonl, the scratch goes. Read-only, Windows-only,
 // Administrator required. Live and image are mutually exclusive.
 //
 // (`lick` stays accepted as the explicit word for the default run.) The
@@ -153,7 +153,7 @@ func run(args []string, getenv func(string) string, stdout io.Writer) int {
 			if img := getenv(pfx + "_IMAGE"); img != "" {
 				return runSubOnImage(s, img, getenv, stdout)
 			}
-			return batch.Run(s.tool, batch.Options{Version: version, Contract: contractYML}, getenv, stdout)
+			return runSubBatch(s, getenv, stdout)
 		}
 		// argv debug pass-through: hand the rest of the command line to
 		// the parser's own Main, busybox-style. It exits the process.
@@ -199,8 +199,9 @@ type lickSummary struct {
 }
 
 // runSubOnImage is one parser's batch mode over ONE disk image: its sets are
-// pulled into scratch, the batch loop runs over that tree into
-// <OUT_DIR>/<image>/, and the parser's ordinary summary line is printed.
+// pulled into scratch, the batch loop runs over that tree, and the flattened
+// records land at <OUT_DIR>/<asset-id>.jsonl; the parser's ordinary summary
+// line is printed.
 func runSubOnImage(s sub, selected string, getenv func(string) string, stdout io.Writer) int {
 	pfx := batch.Prefix(s.tool.Name) + "_"
 	get := func(suffix, def string) string {
@@ -219,17 +220,17 @@ func runSubOnImage(s sub, selected string, getenv func(string) string, stdout io
 		return configErrorSummary(s.name, err, stdout)
 	}
 	defer os.RemoveAll(scratch)
-	shim := shimEnv(s.tool, getenv, map[string]string{
-		"INPUT_DIR": scratch, "OUT_DIR": filepath.Join(out, diskimage.ImageItemName(in, images[0])), "IMAGE": "",
-	})
-	return batch.Run(s.tool, batch.Options{Version: version, Contract: contractYML}, shim, stdout)
+	return runFlat(s.tool, batch.Options{Version: version, Contract: contractYML}, getenv,
+		map[string]string{"INPUT_DIR": scratch, "IMAGE": ""},
+		out, work, scratch, diskimage.ImageItemName(in, images[0]), map[string]bool{}, stdout)
 }
 
 // runSubOnLive is one parser's batch mode over the LIVE host: its sets are
-// pulled off the live volume into scratch, the batch loop runs over that tree
-// into <OUT_DIR>/live/, and the parser's ordinary summary line is printed. The
-// live analogue of runSubOnImage; drive names the volume ("" / a truthy word =
-// the system drive, a letter names one).
+// pulled off the live volume into scratch, the batch loop runs over that tree,
+// and the flattened records land at <OUT_DIR>/<asset-id>.jsonl (the live host
+// dir name, as a live run has no manifest); the parser's ordinary summary line
+// is printed. The live analogue of runSubOnImage; drive names the volume ("" /
+// a truthy word = the system drive, a letter names one).
 func runSubOnLive(s sub, drive string, getenv func(string) string, stdout io.Writer) int {
 	pfx := batch.Prefix(s.tool.Name) + "_"
 	get := func(suffix, def string) string {
@@ -244,10 +245,28 @@ func runSubOnLive(s sub, drive string, getenv func(string) string, stdout io.Wri
 		return configErrorSummary(s.name, err, stdout)
 	}
 	defer os.RemoveAll(scratch)
-	shim := shimEnv(s.tool, getenv, map[string]string{
-		"INPUT_DIR": scratch, "OUT_DIR": filepath.Join(out, live.HostDir), "IMAGE": "", "LIVE": "",
-	})
-	return batch.Run(s.tool, batch.Options{Version: version, Contract: contractYML}, shim, stdout)
+	return runFlat(s.tool, batch.Options{Version: version, Contract: contractYML}, getenv,
+		map[string]string{"INPUT_DIR": scratch, "IMAGE": "", "LIVE": ""},
+		out, work, scratch, live.HostDir, map[string]bool{}, stdout)
+}
+
+// runSubBatch is one parser's plain env-driven batch mode — no image, no live:
+// the loose-evidence case DX drives for a single sub-tool (e.g. goevtx over one
+// host's extracted logs). It runs through the flatten wrapper so the records
+// land at <OUT_DIR>/<asset-id>.jsonl — one file, named by the manifest asset id
+// or (loose, as here) the input host dir — instead of the runtime's
+// <item>/<subtool>.jsonl tree.
+func runSubBatch(s sub, getenv func(string) string, stdout io.Writer) int {
+	pfx := batch.Prefix(s.tool.Name) + "_"
+	get := func(suffix, def string) string {
+		if v := getenv(pfx + suffix); v != "" {
+			return v
+		}
+		return def
+	}
+	out, in, work := get("OUT_DIR", "/output"), get("INPUT_DIR", "/input"), get("WORK_DIR", "/work")
+	return runFlat(s.tool, batch.Options{Version: version, Contract: contractYML}, getenv,
+		map[string]string{}, out, work, "", filepath.Base(in), map[string]bool{}, stdout)
 }
 
 // forceLive wraps getenv so GOWINDOWLICKER_LIVE reads as on (the system drive)
@@ -277,10 +296,10 @@ func configErrorSummary(tool string, err error, stdout io.Writer) int {
 }
 
 // runLick executes every parser over the same input tree, each through the
-// ordinary batch runtime under a shimmed environment into its own
-// <OUT_DIR>/<subtool>/ tree, and prints one aggregate summary line. Format
-// stays per parser (three of the twelve are JSONL-only), so a sub-tool's own
-// <SUBTOOL>_FORMAT falls through the shim untouched.
+// ordinary batch runtime (into a private temp), then flattens the result to
+// <OUT_DIR>/<subtool>/<asset-id>.jsonl, and prints one aggregate summary line.
+// Format stays per parser (three of the twelve are JSONL-only), so a sub-tool's
+// own <SUBTOOL>_FORMAT falls through the shim untouched.
 func runLick(getenv func(string) string, stdout io.Writer) int {
 	get := func(suffix, def string) string {
 		if v := getenv("GOWINDOWLICKER_" + suffix); v != "" {
@@ -346,14 +365,17 @@ func runLick(getenv func(string) string, stdout io.Writer) int {
 		}
 	}
 
+	opened := map[string]bool{} // final files opened this sweep: first touch truncates, a later same-asset pass appends
 	for _, p := range passes {
+		assetFallback := p.host
+		if assetFallback == "" {
+			assetFallback = filepath.Base(p.in)
+		}
 		for _, s := range subs {
-			shim := shimEnv(s.tool, getenv, map[string]string{
-				"INPUT_DIR": p.in, "OUT_DIR": filepath.Join(out, s.name, p.host), "WORK_DIR": work,
-				"FORCE": force, "LOG_LEVEL": level, "IMAGE": "", "LIVE": "",
-			})
 			var buf bytes.Buffer
-			code := batch.Run(s.tool, batch.Options{Version: version, Contract: contractYML}, shim, &buf)
+			code := runFlat(s.tool, batch.Options{Version: version, Contract: contractYML}, getenv,
+				map[string]string{"INPUT_DIR": p.in, "WORK_DIR": work, "FORCE": force, "LOG_LEVEL": level, "IMAGE": "", "LIVE": ""},
+				filepath.Join(out, s.name), work, p.scratch, assetFallback, opened, &buf)
 			var ss batch.Summary
 			if err := json.Unmarshal(bytes.TrimSpace(buf.Bytes()), &ss); err != nil {
 				ss = batch.Summary{Tool: s.name, Status: "config_error", Exit: code}

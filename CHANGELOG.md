@@ -32,6 +32,19 @@ All notable changes are documented here, following
   security policy and a pull-request template.
 
 ### Changed
+- **Flat lane output — one record file per (sub-tool, evidence asset).** The
+  sweep, the single-sub-tool image/live runs and the plain batch run now write
+  `<OUT_DIR>/<subtool>/<asset-id>.jsonl` instead of the runtime's
+  `<subtool>/<image>/<item>/<subtool>.jsonl` tree: no per-artefact directory and
+  no duplicated `<subtool>.jsonl` leaf. The asset id is the strongest gomount
+  stage-manifest identifier (`disk_serial` → `volume_guid` → `image_sha256`),
+  falling back to the image item name (loose/live: the host dir name); the
+  per-artefact source path is each row's `Origin.Path`, so the collapse loses no
+  provenance. Two acquisitions of one disk share an asset id and **merge by
+  appending** within a run (byakugan's row-level spindle guid dedupes at load);
+  a whole re-run rebuilds. gopinfo is unchanged — it still writes its per-item
+  tree into a private temp dir, which the engine merges (`flatten.go`,
+  `origin.AssetID`).
 - gopinfo raised to v0.3.0 (the Origin asset fields, the manifest-key reader and
   the `framework` stamp hook). A disk-image run now materialises WITH
   `gomount materialise --manifest --hash` (and always stages the SOFTWARE hive),

@@ -66,14 +66,13 @@ func TestLiveWordSweep(t *testing.T) {
 	if len(sets) != 1 || sets[0] != "windows-core" {
 		t.Fatalf("sweep collected sets = %v, want [windows-core]", sets)
 	}
-	// the record landed under the live host: <out>/gorb/live/<item>/gorb.jsonl
-	matches, _ := filepath.Glob(filepath.Join(out, "gorb", "live", "*", "gorb.jsonl"))
-	if len(matches) != 1 {
-		t.Fatalf("gorb output under the live host: %v", matches)
+	// flat: one file per (subtool, asset), named by the asset id — a live run has
+	// no manifest, so the fallback is the live host dir name.
+	if _, err := os.Stat(filepath.Join(out, "gorb", live.HostDir+".jsonl")); err != nil {
+		t.Fatalf("gorb live flat output missing: %v", err)
 	}
-	// nothing at the loose level — the live host is the only source
-	if strays, _ := filepath.Glob(filepath.Join(out, "gorb", "*", "gorb.jsonl")); len(strays) != 0 {
-		t.Fatalf("records at the loose level though live was selected: %v", strays)
+	if nested, _ := filepath.Glob(filepath.Join(out, "gorb", "*", "gorb.jsonl")); len(nested) != 0 {
+		t.Fatalf("per-item nesting not flattened: %v", nested)
 	}
 	// every sub-run is attributed to the live host
 	for _, ss := range sum.Subtools {
@@ -98,9 +97,8 @@ func TestLiveEnvSweep(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, buf.String())
 	}
-	matches, _ := filepath.Glob(filepath.Join(out, "gorb", "live", "*", "gorb.jsonl"))
-	if len(matches) != 1 {
-		t.Fatalf("GOWINDOWLICKER_LIVE=1 sweep output: %v", matches)
+	if _, err := os.Stat(filepath.Join(out, "gorb", live.HostDir+".jsonl")); err != nil {
+		t.Fatalf("GOWINDOWLICKER_LIVE=1 sweep output missing: %v", err)
 	}
 }
 
@@ -119,11 +117,10 @@ func TestSubtoolLive(t *testing.T) {
 	if len(sets) != 1 || sets[0] != "recyclebin" {
 		t.Fatalf("gorb live collected sets = %v, want [recyclebin]", sets)
 	}
-	// records land under <out>/live/<item>/gorb.jsonl (no <subtool> level for a
-	// scoped run, exactly like the image sub-run)
-	matches, _ := filepath.Glob(filepath.Join(out, "live", "*", "gorb.jsonl"))
-	if len(matches) != 1 {
-		t.Fatalf("gorb live output under <out>/live/: %v", matches)
+	// flat: a scoped live run writes <out>/<asset-id>.jsonl (no <subtool> level,
+	// like the image sub-run); the fallback id is the live host dir name.
+	if _, err := os.Stat(filepath.Join(out, live.HostDir+".jsonl")); err != nil {
+		t.Fatalf("gorb live flat output not at <out>/<asset-id>.jsonl: %v", err)
 	}
 	if entries, _ := os.ReadDir(work); len(entries) != 0 {
 		t.Fatalf("scratch left behind: %v", entries)

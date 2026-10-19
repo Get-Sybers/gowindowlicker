@@ -68,7 +68,9 @@ func TestSubtoolDispatch(t *testing.T) {
 	if sum["tool"] != "gorb" || sum["records"] != float64(1) {
 		t.Fatalf("summary: %v", sum)
 	}
-	if _, err := os.Stat(filepath.Join(out, "_I3XKCd7.pdf", "gorb.jsonl")); err != nil {
+	// flat: a plain (loose) sub-tool run writes <out>/<asset-id>.jsonl, the asset
+	// id falling back to the input dir name for loose evidence.
+	if _, err := os.Stat(filepath.Join(out, filepath.Base(in)+".jsonl")); err != nil {
 		t.Fatalf("record file: %v", err)
 	}
 }
@@ -181,26 +183,39 @@ func TestLickSweep(t *testing.T) {
 	if sum.Records < 2 {
 		t.Fatalf("records: %d", sum.Records)
 	}
+	// flat layout: one file per (subtool, asset), named by the asset id — here a
+	// loose tree with no manifest, so the fallback is the evidence dir name.
+	base := filepath.Base(in)
 	for _, want := range []string{
-		filepath.Join(out, "gorb", "$Recycle.Bin_S-1-5-21-1__IQ3K5N7.docx", "gorb.jsonl"),
-		filepath.Join(out, "gole", "sample.lnk", "gole.jsonl"),
+		filepath.Join(out, "gorb", base+".jsonl"),
+		filepath.Join(out, "gole", base+".jsonl"),
 	} {
 		if _, err := os.Stat(want); err != nil {
 			t.Fatalf("sweep output missing: %v", err)
 		}
 	}
+	// no per-artefact directory and no duplicated <subtool>.jsonl leaf survive
+	if nested, _ := filepath.Glob(filepath.Join(out, "gorb", "*", "gorb.jsonl")); len(nested) != 0 {
+		t.Fatalf("per-item nesting not flattened: %v", nested)
+	}
 
-	// rerun: idempotent — the processed items are skipped, nothing rewritten
+	// rerun: idempotent RESULT. There is no per-item skip now — each sweep
+	// rebuilds the flat files (same-asset acquisitions append within a run,
+	// byakugan dedupes at load), so a clean rerun reproduces byte-identical output.
+	firstGorb, err := os.ReadFile(filepath.Join(out, "gorb", base+".jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	buf.Reset()
 	if code := run(nil, env(e), &buf); code != 0 {
 		t.Fatalf("rerun exit %d: %s", code, buf.String())
 	}
-	var again lickSummary
-	if err := json.Unmarshal(bytes.TrimSpace(buf.Bytes()), &again); err != nil {
+	secondGorb, err := os.ReadFile(filepath.Join(out, "gorb", base+".jsonl"))
+	if err != nil {
 		t.Fatal(err)
 	}
-	if again.Processed != 0 || again.Skipped != sum.Processed {
-		t.Fatalf("rerun not idempotent: %+v", again)
+	if !bytes.Equal(firstGorb, secondGorb) {
+		t.Fatalf("rerun not idempotent: %d vs %d bytes", len(firstGorb), len(secondGorb))
 	}
 }
 
