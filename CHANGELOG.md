@@ -59,6 +59,13 @@ All notable changes are documented here, following
   closer writes explicitly discarded; import grouping on eight files; a test
   fixture built with `slices.Concat`; a comment on the sqlite driver import
   and a spelling.
+- The `input` mount is no longer declared `required`. The flattened lane binds a
+  loose event-log host at `/input/<host>` (so its one flat file is named for the
+  host) and a live run reads the raw NTFS volume with no `/input` at all, so an
+  orchestrator that enforces required mounts (godfir_run's argv gate) rejected
+  those runs — the mount was only ever required at the literal `/input`. Now
+  optional, matching godaemonhunter; only `/output` stays required. No behaviour
+  change — the tool never enforced the flag itself.
 
 ## [0.2.1] - 2026-10-03
 
