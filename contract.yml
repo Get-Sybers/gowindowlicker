@@ -31,8 +31,13 @@ env:
   GOWINDOWLICKER_FORCE:     {required: false, default: "0", type: bool, desc: '1/true/yes/on reruns items that already have valid output, in every sub-run'}
   GOWINDOWLICKER_LOG_LEVEL: {required: false, default: info,    desc: 'error|warn|info|debug, stderr only, applied to every sub-run'}
 
+# input is NOT required: the sweep binds the evidence tree at /input, but a loose
+# event-log sub-run binds one host at /input/<host> (so the flat leaf is named
+# for the host) and a live run reads the raw NTFS volume with no /input at all —
+# the same reason godaemonhunter declares its input optional. Only /output (where
+# the records land) is required; the orchestrator still checks each run's own mounts.
 mounts:
-  - {name: input,  path: /input,  mode: ro, env: GOWINDOWLICKER_INPUT_DIR, required: true}
+  - {name: input,  path: /input,  mode: ro, env: GOWINDOWLICKER_INPUT_DIR, required: false}
   - {name: output, path: /output, mode: rw, env: GOWINDOWLICKER_OUT_DIR,   required: true}
   - {name: work,   path: /work,   mode: rw, env: GOWINDOWLICKER_WORK_DIR,  required: false}
 
